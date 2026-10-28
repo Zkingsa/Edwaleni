@@ -1,0 +1,950 @@
+{
+  "users": [
+    {
+      "id": "usr-admin-default",
+      "name": "GTRA System Administrator",
+      "firstName": "System",
+      "lastName": "Administrator",
+      "email": "admin@system-gtra.org",
+      "loginIdentifier": "admin@system-gtra.org",
+      "passwordHash": "$2b$10$rpykHMYhtQjE9tufkm3qsOYyXd/IbzaR1MOpYbn/DUMUXdbQ98PWi",
+      "mustChangePassword": true,
+      "status": "active",
+      "departmentAssignments": [
+        {
+          "departmentId": "dept-admin",
+          "positionId": "pos-church-admin",
+          "roleId": "system_admin"
+        }
+      ],
+      "createdAt": "2026-10-28T12:29:12.645Z",
+      "updatedAt": "2026-10-28T12:29:12.645Z"
+    },
+    {
+      "id": "usr-pastor-khaya",
+      "name": "Pastor S. Khaya",
+      "firstName": "Sipho",
+      "lastName": "Khaya",
+      "email": "sKhaya@pastor-gtra.org",
+      "loginIdentifier": "sKhaya@pastor-gtra.org",
+      "passwordHash": "$2b$10$JZU6/pvKrcccg4nXC5hchOdFPppsszfm2pEE5JASRGhH8H6u.OgI6",
+      "mustChangePassword": false,
+      "status": "active",
+      "departmentAssignments": [
+        {
+          "departmentId": "dept-leadership",
+          "positionId": "pos-senior-pastor",
+          "roleId": "senior_pastor"
+        }
+      ],
+      "createdAt": "2026-10-28T12:29:12.766Z",
+      "updatedAt": "2026-10-28T12:29:12.766Z"
+    },
+    {
+      "id": "usr-worship-manager",
+      "name": "Musa Dlamini",
+      "firstName": "Musa",
+      "lastName": "Dlamini",
+      "email": "mDlamini@worship-gtra.org",
+      "loginIdentifier": "mDlamini@worship-gtra.org",
+      "passwordHash": "$2b$10$JZU6/pvKrcccg4nXC5hchOdFPppsszfm2pEE5JASRGhH8H6u.OgI6",
+      "mustChangePassword": false,
+      "status": "active",
+      "departmentAssignments": [
+        {
+          "departmentId": "dept-worship",
+          "positionId": "pos-worship-manager",
+          "roleId": "worship_manager"
+        }
+      ],
+      "createdAt": "2026-10-28T12:29:12.766Z",
+      "updatedAt": "2026-10-28T12:29:12.766Z"
+    },
+    {
+      "id": "usr-treasurer",
+      "name": "Thabo Maseko",
+      "firstName": "Thabo",
+      "lastName": "Maseko",
+      "email": "tMaseko@finance-gtra.org",
+      "loginIdentifier": "tMaseko@finance-gtra.org",
+      "passwordHash": "$2b$10$JZU6/pvKrcccg4nXC5hchOdFPppsszfm2pEE5JASRGhH8H6u.OgI6",
+      "mustChangePassword": false,
+      "status": "active",
+      "departmentAssignments": [
+        {
+          "departmentId": "dept-finance",
+          "positionId": "pos-treasurer",
+          "roleId": "treasurer"
+        },
+        {
+          "departmentId": "dept-finance",
+          "positionId": "pos-cfo",
+          "roleId": "cfo"
+        }
+      ],
+      "createdAt": "2026-10-28T12:29:12.766Z",
+      "updatedAt": "2026-10-28T12:29:12.766Z"
+    },
+    {
+      "id": "usr-sample-member",
+      "name": "Lindiwe Zulu",
+      "firstName": "Lindiwe",
+      "lastName": "Zulu",
+      "email": "lindiwe.zulu@gmail.com",
+      "loginIdentifier": "lindiwe.zulu@gmail.com",
+      "passwordHash": "$2b$10$JZU6/pvKrcccg4nXC5hchOdFPppsszfm2pEE5JASRGhH8H6u.OgI6",
+      "mustChangePassword": false,
+      "status": "active",
+      "departmentAssignments": [],
+      "createdAt": "2026-10-28T12:29:12.766Z",
+      "updatedAt": "2026-10-28T12:29:12.766Z"
+    },
+    {
+      "id": "usr-mbr-1793190575426",
+      "name": "Test Church Member",
+      "firstName": "Test",
+      "lastName": "Church Member",
+      "email": "member.1793190575310@gmail.com",
+      "loginIdentifier": "member.1793190575310@gmail.com",
+      "passwordHash": "$2b$10$iP7Yss8hcVNPvjkz.CB1DO8Le6JToyTWaolNmjinAYpu.E22f2ZJy",
+      "mustChangePassword": false,
+      "status": "active",
+      "departmentAssignments": [],
+      "phone": "+268 7699 9999",
+      "createdAt": "2026-10-28T12:29:35.426Z",
+      "updatedAt": "2026-10-28T12:29:35.426Z"
+    },
+    {
+      "id": "usr-stf-1793190575579",
+      "name": "Fika Siximba",
+      "firstName": "Fika",
+      "lastName": "Siximba",
+      "email": "fSiximba@worship-gtra.org",
+      "loginIdentifier": "fSiximba@worship-gtra.org",
+      "passwordHash": "$2b$10$U/httpcWFSEUFoyTg/hAJOXDbdcpZ.PoDfBAlISZUXn.2Bnd0Hlxa",
+      "mustChangePassword": true,
+      "status": "active",
+      "departmentAssignments": [
+        {
+          "departmentId": "dept-worship",
+          "positionId": "pos-worship-manager",
+          "roleId": "worship_manager"
+        }
+      ],
+      "phone": "+268 7611 0000",
+      "createdAt": "2026-10-28T12:29:35.579Z",
+      "updatedAt": "2026-10-28T12:29:35.579Z"
+    }
+  ],
+  "departments": [
+    {
+      "id": "dept-leadership",
+      "name": "Church Leadership",
+      "code": "LEADERSHIP",
+      "categoryDomain": "pastor-gtra.org",
+      "description": "Pastoral shepherding, spiritual guidance, eldership, and doctrinal oversight.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.335Z"
+    },
+    {
+      "id": "dept-admin",
+      "name": "Administration",
+      "code": "ADMIN",
+      "categoryDomain": "admin-gtra.org",
+      "description": "Secretariat, office management, church membership records, and central correspondence.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-finance",
+      "name": "Finance",
+      "code": "FINANCE",
+      "categoryDomain": "finance-gtra.org",
+      "description": "Treasury, tithes & offerings recording, fiscal compliance, and financial reporting.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-worship",
+      "name": "Worship and Praise",
+      "code": "WORSHIP",
+      "categoryDomain": "worship-gtra.org",
+      "description": "Music ministry, choir, instrumentalists, and service liturgy leadership.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-media",
+      "name": "Media and Communications",
+      "code": "MEDIA",
+      "categoryDomain": "media-gtra.org",
+      "description": "Sound engineering, livestream broadcast, photography, and digital communication.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-youth",
+      "name": "Youth Ministry",
+      "code": "YOUTH",
+      "categoryDomain": "youth-gtra.org",
+      "description": "Youth discipleship, Friday fellowships, campus outreach, and young adults.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-children",
+      "name": "Children Ministry",
+      "code": "CHILDREN",
+      "categoryDomain": "leader-gtra.org",
+      "description": "Sunday School, Bible foundational classes, and child protection.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-women",
+      "name": "Women's Fellowship",
+      "code": "WOMEN",
+      "categoryDomain": "leader-gtra.org",
+      "description": "Mothers union, prayer vigils, mentorship, and home building seminars.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-men",
+      "name": "Men's Fellowship",
+      "code": "MEN",
+      "categoryDomain": "leader-gtra.org",
+      "description": "Fathers in Christ, brotherhood meetings, and community service.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-prayer",
+      "name": "Prayer and Intercession",
+      "code": "PRAYER",
+      "categoryDomain": "leader-gtra.org",
+      "description": "Midweek prayer altar, 24/7 intercession chain, and fasting periods.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-outreach",
+      "name": "Evangelism and Missions",
+      "code": "OUTREACH",
+      "categoryDomain": "leader-gtra.org",
+      "description": "Edwaleni community evangelism, hospital visits, and missionary support.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-hospitality",
+      "name": "Protocol and Ushers",
+      "code": "HOSPITALITY",
+      "categoryDomain": "admin-gtra.org",
+      "description": "Sanctuary welcoming, order of service ushering, and VIP dignitary care.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    },
+    {
+      "id": "dept-facilities",
+      "name": "Facilities and Logistics",
+      "code": "FACILITIES",
+      "categoryDomain": "admin-gtra.org",
+      "description": "Church sanctuary property, groundskeeping, equipment maintenance, and security.",
+      "status": "active",
+      "createdAt": "2026-10-28T12:29:12.336Z"
+    }
+  ],
+  "positions": [
+    {
+      "id": "pos-senior-pastor",
+      "title": "Senior Pastor",
+      "departmentId": "dept-leadership",
+      "defaultRoleId": "senior_pastor",
+      "description": "Chief spiritual shepherd and vision holder of GTRA."
+    },
+    {
+      "id": "pos-assistant-pastor",
+      "title": "Assistant Pastor",
+      "departmentId": "dept-leadership",
+      "defaultRoleId": "assistant_pastor_elder",
+      "description": "Assisting pastor in pulpit ministry and member visitation."
+    },
+    {
+      "id": "pos-church-elder",
+      "title": "Church Elder",
+      "departmentId": "dept-leadership",
+      "defaultRoleId": "assistant_pastor_elder",
+      "description": "Church elder providing counsel and doctrinal governance."
+    },
+    {
+      "id": "pos-church-admin",
+      "title": "Church Administrator",
+      "departmentId": "dept-admin",
+      "defaultRoleId": "church_admin",
+      "description": "Oversees daily church operations, schedules, and staff."
+    },
+    {
+      "id": "pos-church-secretary",
+      "title": "Church Secretary",
+      "departmentId": "dept-admin",
+      "defaultRoleId": "church_admin",
+      "description": "Coordinates official church documentation, records, and minutes."
+    },
+    {
+      "id": "pos-admin-assistant",
+      "title": "Administrative Assistant",
+      "departmentId": "dept-admin",
+      "defaultRoleId": "church_admin",
+      "description": "Assists with reception, notices, and member inquiries."
+    },
+    {
+      "id": "pos-cfo",
+      "title": "Chief Financial Officer (CFO)",
+      "departmentId": "dept-finance",
+      "defaultRoleId": "cfo",
+      "description": "Strategic financial director and transaction approver."
+    },
+    {
+      "id": "pos-treasurer",
+      "title": "Treasurer",
+      "departmentId": "dept-finance",
+      "defaultRoleId": "treasurer",
+      "description": "Custodian of bank accounts, tithes, and operating budgets."
+    },
+    {
+      "id": "pos-finance-officer",
+      "title": "Finance Officer",
+      "departmentId": "dept-finance",
+      "defaultRoleId": "treasurer",
+      "description": "Handles vouchers, accounts payable, and receipts."
+    },
+    {
+      "id": "pos-tithes-officer",
+      "title": "Tithes and Offerings Officer",
+      "departmentId": "dept-finance",
+      "defaultRoleId": "tithes_officer",
+      "description": "Reconciles service collections and individual envelopes."
+    },
+    {
+      "id": "pos-finance-auditor",
+      "title": "Finance Auditor",
+      "departmentId": "dept-finance",
+      "defaultRoleId": "finance_auditor",
+      "description": "Independent auditor conducting read-only inspections."
+    },
+    {
+      "id": "pos-worship-manager",
+      "title": "Worship Team Manager",
+      "departmentId": "dept-worship",
+      "defaultRoleId": "worship_manager",
+      "description": "Coordinates rehearsal dates, roster assignments, and attendance."
+    },
+    {
+      "id": "pos-worship-leader",
+      "title": "Worship Leader",
+      "departmentId": "dept-worship",
+      "defaultRoleId": "worship_leader_choir",
+      "description": "Leads congregation in praise and adoration."
+    },
+    {
+      "id": "pos-choir-director",
+      "title": "Choir Director",
+      "departmentId": "dept-worship",
+      "defaultRoleId": "worship_leader_choir",
+      "description": "Directs choir vocal harmonies and rehearsals."
+    },
+    {
+      "id": "pos-musician",
+      "title": "Musician",
+      "departmentId": "dept-worship",
+      "defaultRoleId": "worship_leader_choir",
+      "description": "Instrumentalist serving on keys, drums, bass, or guitar."
+    },
+    {
+      "id": "pos-choir-member",
+      "title": "Choir Member",
+      "departmentId": "dept-worship",
+      "defaultRoleId": "worship_leader_choir",
+      "description": "Vocalist serving in the mass or praise choir."
+    },
+    {
+      "id": "pos-media-manager",
+      "title": "Media Manager",
+      "departmentId": "dept-media",
+      "defaultRoleId": "media_manager",
+      "description": "Directs church broadcast, media team, and audiovisual systems."
+    },
+    {
+      "id": "pos-sound-tech",
+      "title": "Sound Technician",
+      "departmentId": "dept-media",
+      "defaultRoleId": "media_manager",
+      "description": "Operates front-of-house sound console and monitor feeds."
+    },
+    {
+      "id": "pos-livestream-operator",
+      "title": "Livestream Operator",
+      "departmentId": "dept-media",
+      "defaultRoleId": "media_manager",
+      "description": "Broadcasts Sunday services to online congregants."
+    },
+    {
+      "id": "pos-photographer",
+      "title": "Photographer/Videographer",
+      "departmentId": "dept-media",
+      "defaultRoleId": "media_manager",
+      "description": "Documents church milestones, conferences, and baptisms."
+    },
+    {
+      "id": "pos-comm-officer",
+      "title": "Communications Officer",
+      "departmentId": "dept-media",
+      "defaultRoleId": "media_manager",
+      "description": "Prepares weekly bulletins, press releases, and announcements."
+    },
+    {
+      "id": "pos-youth-leader",
+      "title": "Youth Leader",
+      "departmentId": "dept-youth",
+      "defaultRoleId": "youth_children_leader",
+      "description": "Directs youth fellowship, mentorship, and camps."
+    },
+    {
+      "id": "pos-children-leader",
+      "title": "Children's Ministry Leader",
+      "departmentId": "dept-children",
+      "defaultRoleId": "youth_children_leader",
+      "description": "Coordinates Sunday school and child spiritual development."
+    },
+    {
+      "id": "pos-women-leader",
+      "title": "Women's Ministry Leader",
+      "departmentId": "dept-women",
+      "defaultRoleId": "department_leader",
+      "description": "Leads the women of faith fellowship."
+    },
+    {
+      "id": "pos-men-leader",
+      "title": "Men's Ministry Leader",
+      "departmentId": "dept-men",
+      "defaultRoleId": "department_leader",
+      "description": "Leads the brotherhood fellowship."
+    },
+    {
+      "id": "pos-prayer-leader",
+      "title": "Prayer Team Leader",
+      "departmentId": "dept-prayer",
+      "defaultRoleId": "department_leader",
+      "description": "Mobilises prayer warriors and prayer requests."
+    },
+    {
+      "id": "pos-evangelism-leader",
+      "title": "Evangelism Leader",
+      "departmentId": "dept-outreach",
+      "defaultRoleId": "department_leader",
+      "description": "Directs community soul winning and tract distribution."
+    },
+    {
+      "id": "pos-head-usher",
+      "title": "Head Usher",
+      "departmentId": "dept-hospitality",
+      "defaultRoleId": "department_leader",
+      "description": "Oversees ushering team, seating, and sanctuary decorum."
+    },
+    {
+      "id": "pos-bible-study-coord",
+      "title": "Bible Study Coordinator",
+      "departmentId": "dept-leadership",
+      "defaultRoleId": "department_leader",
+      "description": "Coordinates midweek biblical study syllabus."
+    },
+    {
+      "id": "pos-missions-coord",
+      "title": "Missions Coordinator",
+      "departmentId": "dept-outreach",
+      "defaultRoleId": "department_leader",
+      "description": "Liaises with mission fields and regional outreaches."
+    },
+    {
+      "id": "pos-welfare-coord",
+      "title": "Welfare Coordinator",
+      "departmentId": "dept-outreach",
+      "defaultRoleId": "department_leader",
+      "description": "Provides compassionate assistance to needy members."
+    },
+    {
+      "id": "pos-events-coord",
+      "title": "Events Coordinator",
+      "departmentId": "dept-admin",
+      "defaultRoleId": "department_leader",
+      "description": "Coordinates church conferences, dinners, and retreats."
+    },
+    {
+      "id": "pos-facilities-mgr",
+      "title": "Facilities Manager",
+      "departmentId": "dept-facilities",
+      "defaultRoleId": "department_leader",
+      "description": "Ensures sanctuary cleanliness, electrical safety, and maintenance."
+    },
+    {
+      "id": "pos-family-leader",
+      "title": "Family Ministry Leader",
+      "departmentId": "dept-leadership",
+      "defaultRoleId": "department_leader",
+      "description": "Coordinates marriage seminars and family counselling."
+    },
+    {
+      "id": "pos-pastoral-care-coord",
+      "title": "Pastoral Care Coordinator",
+      "departmentId": "dept-leadership",
+      "defaultRoleId": "department_leader",
+      "description": "Manages pastor appointments, home visits, and hospital calls."
+    },
+    {
+      "id": "pos-protocol-officer",
+      "title": "Protocol Officer",
+      "departmentId": "dept-hospitality",
+      "defaultRoleId": "department_leader",
+      "description": "Ensures VIP guest protocol and security coordination."
+    }
+  ],
+  "roles": [
+    {
+      "id": "system_admin",
+      "name": "System Administrator",
+      "description": "Full administrative access across staff, departments, technical settings, and audit logs.",
+      "permissions": [
+        "users.view",
+        "users.create",
+        "users.update",
+        "users.deactivate",
+        "departments.manage",
+        "members.view",
+        "members.create",
+        "members.update",
+        "members.deactivate",
+        "finance.transactions.view",
+        "finance.transactions.create",
+        "finance.transactions.approve",
+        "finance.reports.view",
+        "finance.reconciliation.manage",
+        "worship.schedule.view",
+        "worship.schedule.manage",
+        "worship.members.manage",
+        "worship.attendance.manage",
+        "announcements.create",
+        "announcements.approve",
+        "events.manage",
+        "reports.view",
+        "pastoral_care.view"
+      ]
+    },
+    {
+      "id": "senior_pastor",
+      "name": "Senior Pastor",
+      "description": "Spiritual shepherd overseeing ministries, member records, pastoral care, and church-wide reports.",
+      "permissions": [
+        "members.view",
+        "members.create",
+        "members.update",
+        "pastoral_care.view",
+        "announcements.create",
+        "announcements.approve",
+        "events.manage",
+        "reports.view",
+        "worship.schedule.view"
+      ]
+    },
+    {
+      "id": "assistant_pastor_elder",
+      "name": "Assistant Pastor & Elder",
+      "description": "Assisting in pastoral visitation, church member care, and delegated ministry oversight.",
+      "permissions": [
+        "members.view",
+        "pastoral_care.view",
+        "announcements.create",
+        "worship.schedule.view",
+        "events.manage"
+      ]
+    },
+    {
+      "id": "church_admin",
+      "name": "Church Administrator",
+      "description": "Manages member registrations, church records, scheduling, and administrative reports.",
+      "permissions": [
+        "users.view",
+        "members.view",
+        "members.create",
+        "members.update",
+        "announcements.create",
+        "announcements.approve",
+        "events.manage",
+        "reports.view"
+      ]
+    },
+    {
+      "id": "cfo",
+      "name": "Chief Financial Officer (CFO)",
+      "description": "Oversees church budgets, financial audits, transaction approval, and fiscal reporting.",
+      "permissions": [
+        "finance.transactions.view",
+        "finance.transactions.create",
+        "finance.transactions.approve",
+        "finance.reports.view",
+        "finance.reconciliation.manage",
+        "reports.view"
+      ]
+    },
+    {
+      "id": "treasurer",
+      "name": "Treasurer",
+      "description": "Records church income, tithes, offerings, donations, expenses, and reconciles bank deposits.",
+      "permissions": [
+        "finance.transactions.view",
+        "finance.transactions.create",
+        "finance.reports.view",
+        "finance.reconciliation.manage"
+      ]
+    },
+    {
+      "id": "tithes_officer",
+      "name": "Tithes and Offerings Officer",
+      "description": "Records donor contributions, calculates tallies, and generates giving summaries.",
+      "permissions": [
+        "finance.transactions.view",
+        "finance.transactions.create"
+      ]
+    },
+    {
+      "id": "finance_auditor",
+      "name": "Finance Auditor",
+      "description": "Read-only review of original transactions, ledgers, reconciliations, and audit trails.",
+      "permissions": [
+        "finance.transactions.view",
+        "finance.reports.view",
+        "reports.view"
+      ]
+    },
+    {
+      "id": "worship_manager",
+      "name": "Worship Team Manager",
+      "description": "Coordinates worship rehearsals, sets dates/times, assigns musicians/vocalists, and tracks attendance.",
+      "permissions": [
+        "worship.schedule.view",
+        "worship.schedule.manage",
+        "worship.members.manage",
+        "worship.attendance.manage",
+        "announcements.create",
+        "reports.view"
+      ]
+    },
+    {
+      "id": "worship_leader_choir",
+      "name": "Worship Leader & Choir Director",
+      "description": "Prepares song repertoire, conducts rehearsals, and coordinates vocal/instrumental teams.",
+      "permissions": [
+        "worship.schedule.view",
+        "worship.schedule.manage",
+        "worship.attendance.manage"
+      ]
+    },
+    {
+      "id": "media_manager",
+      "name": "Media Manager",
+      "description": "Oversees audio/visual production, livestream operations, and public church announcements.",
+      "permissions": [
+        "events.manage",
+        "announcements.create",
+        "announcements.approve"
+      ]
+    },
+    {
+      "id": "youth_children_leader",
+      "name": "Youth & Children Ministry Leader",
+      "description": "Coordinates youth and children programs, safe attendance, and parental notices.",
+      "permissions": [
+        "members.view",
+        "events.manage",
+        "announcements.create",
+        "reports.view"
+      ]
+    },
+    {
+      "id": "department_leader",
+      "name": "Department Leader",
+      "description": "Coordinates departmental activities, schedules, and ministry volunteers.",
+      "permissions": [
+        "events.manage",
+        "announcements.create",
+        "reports.view"
+      ]
+    },
+    {
+      "id": "church_member",
+      "name": "Church Member",
+      "description": "Registered church member with access to member services, appointment booking, and giving.",
+      "permissions": []
+    }
+  ],
+  "members": [
+    {
+      "id": "mbr-1",
+      "fullName": "Bongani Shongwe",
+      "email": "bongani.s@gmail.com",
+      "phone": "+268 7611 2345",
+      "address": "Section 4, Edwaleni",
+      "membershipStatus": "active",
+      "joinDate": "2021-03-15",
+      "baptismDate": "2021-06-20",
+      "ministryInterests": [
+        "Worship Team",
+        "Men Fellowship"
+      ],
+      "pastoralNotes": "Faithful family head; visited for home blessing in August."
+    },
+    {
+      "id": "mbr-2",
+      "fullName": "Nomcebo Simelane",
+      "email": "nomcebo.sim@outlook.com",
+      "phone": "+268 7822 5678",
+      "address": "Sanctuary Crescent, Edwaleni",
+      "membershipStatus": "active",
+      "joinDate": "2022-01-10",
+      "baptismDate": "2022-04-17",
+      "ministryInterests": [
+        "Women's Fellowship",
+        "Children Ministry"
+      ],
+      "pastoralNotes": "Sunday school teacher assistant."
+    },
+    {
+      "id": "mbr-3",
+      "fullName": "Zodwa Vilakati",
+      "email": "zodwa.v@yahoo.com",
+      "phone": "+268 7933 9012",
+      "address": "Edwaleni North",
+      "membershipStatus": "active",
+      "joinDate": "2023-05-12",
+      "ministryInterests": [
+        "Prayer Altar",
+        "Outreach"
+      ],
+      "pastoralNotes": "Active prayer partner."
+    },
+    {
+      "id": "mbr-1793190575426",
+      "userId": "usr-mbr-1793190575426",
+      "fullName": "Test Church Member",
+      "email": "member.1793190575310@gmail.com",
+      "phone": "+268 7699 9999",
+      "address": "Edwaleni Community",
+      "membershipStatus": "active",
+      "joinDate": "2026-10-28",
+      "ministryInterests": []
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx-1",
+      "date": "2026-10-25T12:29:12.767Z",
+      "type": "tithe",
+      "category": "Sunday Service Tithes",
+      "amount": 2500,
+      "currency": "USD",
+      "description": "Sunday morning envelope collections banked",
+      "recordedBy": "usr-treasurer",
+      "recordedByName": "Thabo Maseko",
+      "status": "approved",
+      "approvedBy": "usr-treasurer",
+      "approvedByName": "Thabo Maseko",
+      "approvedAt": "2026-10-25T12:29:12.767Z",
+      "receiptNumber": "REC-2026-001"
+    },
+    {
+      "id": "tx-2",
+      "date": "2026-10-26T12:29:12.767Z",
+      "type": "project",
+      "category": "Sanctuary Sound System Upgrade",
+      "amount": 1200,
+      "currency": "USD",
+      "description": "Contribution toward wireless microphones and soundboard",
+      "recordedBy": "usr-treasurer",
+      "recordedByName": "Thabo Maseko",
+      "donorName": "Anonymous Donor",
+      "status": "approved",
+      "approvedBy": "usr-treasurer",
+      "approvedByName": "Thabo Maseko",
+      "approvedAt": "2026-10-26T12:29:12.767Z",
+      "receiptNumber": "REC-2026-002"
+    },
+    {
+      "id": "tx-3",
+      "date": "2026-10-27T12:29:12.767Z",
+      "type": "expense",
+      "category": "Sanctuary Utilities & Generator Fuel",
+      "amount": 350,
+      "currency": "USD",
+      "description": "Diesel fuel purchase for Sunday backup power",
+      "recordedBy": "usr-treasurer",
+      "recordedByName": "Thabo Maseko",
+      "status": "pending",
+      "receiptNumber": "REQ-2026-003"
+    }
+  ],
+  "worshipSchedules": [
+    {
+      "id": "ws-1",
+      "title": "Mid-Week Choir & Band Rehearsal",
+      "type": "rehearsal",
+      "date": "2026-10-30",
+      "time": "18:30 - 20:30",
+      "venue": "Main Sanctuary • Edwaleni",
+      "recurrence": "weekly",
+      "songs": [
+        {
+          "title": "Way Maker",
+          "key": "G",
+          "lead": "Worship Leader"
+        },
+        {
+          "title": "The Rock of Ages",
+          "key": "D",
+          "lead": "Choir"
+        },
+        {
+          "title": "Jehovah You Are Most High",
+          "key": "C",
+          "lead": "Mass Praise"
+        }
+      ],
+      "roster": [
+        {
+          "memberId": "usr-worship-manager",
+          "name": "Musa Dlamini",
+          "role": "Worship Leader",
+          "status": "confirmed"
+        },
+        {
+          "memberId": "mbr-1",
+          "name": "Bongani Shongwe",
+          "role": "Keys",
+          "status": "confirmed"
+        },
+        {
+          "memberId": "mbr-temp-1",
+          "name": "Sibusiso M.",
+          "role": "Drums",
+          "status": "confirmed"
+        },
+        {
+          "memberId": "mbr-temp-2",
+          "name": "Gugu Nxumalo",
+          "role": "Choir Member",
+          "status": "pending"
+        },
+        {
+          "memberId": "mbr-temp-3",
+          "name": "Themba Dube",
+          "role": "Bass",
+          "status": "confirmed"
+        }
+      ],
+      "notes": "Please arrive 15 minutes early for sound check and pre-rehearsal prayer.",
+      "attendanceRecorded": false,
+      "attendedMembers": [],
+      "createdAt": "2026-10-28T12:29:12.767Z"
+    },
+    {
+      "id": "ws-2",
+      "title": "Sunday Morning Anointed Service Repertoire",
+      "type": "sunday_service",
+      "date": "2026-11-01",
+      "time": "09:15 - 12:30",
+      "venue": "Main Sanctuary • Edwaleni",
+      "recurrence": "weekly",
+      "songs": [
+        {
+          "title": "Goodness of God",
+          "key": "Ab",
+          "lead": "Worship Leader"
+        },
+        {
+          "title": "Great Are You Lord",
+          "key": "A",
+          "lead": "Choir"
+        },
+        {
+          "title": "Standing on the Promises",
+          "key": "G",
+          "lead": "Congregation"
+        }
+      ],
+      "roster": [
+        {
+          "memberId": "usr-worship-manager",
+          "name": "Musa Dlamini",
+          "role": "Worship Leader",
+          "status": "confirmed"
+        },
+        {
+          "memberId": "mbr-1",
+          "name": "Bongani Shongwe",
+          "role": "Keys",
+          "status": "confirmed"
+        }
+      ],
+      "notes": "Theme: Standing on the Unshakeable Rock.",
+      "attendanceRecorded": false,
+      "attendedMembers": [],
+      "createdAt": "2026-10-28T12:29:12.767Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "audit-1793190575580-kv3md",
+      "timestamp": "2026-10-28T12:29:35.580Z",
+      "userId": "usr-admin-default",
+      "userIdentifier": "admin@system-gtra.org",
+      "action": "STAFF_CREATED",
+      "details": {
+        "staffId": "usr-stf-1793190575579",
+        "loginIdentifier": "fSiximba@worship-gtra.org",
+        "department": "Worship and Praise",
+        "positionId": "pos-worship-manager",
+        "roleId": "worship_manager"
+      }
+    },
+    {
+      "id": "audit-1793190575427-ns6ry",
+      "timestamp": "2026-10-28T12:29:35.427Z",
+      "userId": "usr-mbr-1793190575426",
+      "userIdentifier": "member.1793190575310@gmail.com",
+      "action": "MEMBER_REGISTERED",
+      "details": {
+        "email": "member.1793190575310@gmail.com"
+      }
+    },
+    {
+      "id": "audit-1793190575291-2zi7w",
+      "timestamp": "2026-10-28T12:29:35.291Z",
+      "userId": "usr-admin-default",
+      "userIdentifier": "admin@system-gtra.org",
+      "action": "USER_LOGIN",
+      "details": {
+        "method": "password",
+        "mustChangePassword": true
+      }
+    },
+    {
+      "id": "audit-1793190552645-init-admin",
+      "timestamp": "2026-10-28T12:29:12.645Z",
+      "userId": "usr-admin-default",
+      "userIdentifier": "admin@system-gtra.org",
+      "action": "SYSTEM_ADMIN_INITIALISED",
+      "details": {
+        "note": "Default System Administrator created with temporary initial password. Password change required on first login."
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+
+    // User Profiles
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.uid == userId &&
+               data.email is string && data.email.size() <= 255 &&
+               (data.displayName == null || (data.displayName is string && data.displayName.size() <= 100)) &&
+               (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
+               (data.role == null || data.role in ['member', 'pastor', 'admin']);
+      }
+      allow get: if isSignedIn();
+      allow list: if false; // Users shouldn't be listable by anyone
+      allow create: if isOwner(userId) && isValidUser(incoming()) && isEmailVerified();
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
+    }
+
+    // Appointments
+    match /appointments/{appointmentId} {
+      function isValidAppointment(data) {
+        return data.userId == request.auth.uid &&
+               data.dateTime is string && // Simplified for now
+               data.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
+               (data.notes == null || (data.notes is string && data.notes.size() <= 5000));
+      }
+      allow get: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidAppointment(incoming()) && isEmailVerified();
+      allow update: if isSignedIn() && isOwner(existing().userId) && 
+                    incoming().userId == existing().userId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'dateTime']);
+      allow delete: if isOwner(existing().userId) && existing().status == 'pending';
+    }
+
+    // Ministries (Read-only for public, managed by admin)
+    match /ministries/{ministryId} {
+      allow read: if true;
+      allow write: if false; // Only via Admin SDK/Console for now
+    }
+
+    // Events (Read-only for public, managed by admin)
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Donations
+    match /donations/{donationId} {
+      function isValidDonation(data) {
+        return data.userId == request.auth.uid &&
+               data.amount is number && data.amount > 0 &&
+               data.type in ['tithe', 'offering', 'project', 'other'] &&
+               data.status in ['pending', 'completed', 'failed'];
+      }
+      allow get: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidDonation(incoming());
+      // Updates are restricted—usually handled by a webhook/function
+      allow update: if false;
+    }
+  }
+}

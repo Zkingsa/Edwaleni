@@ -1,0 +1,94 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Church member profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["member", "pastor", "admin"] }
+      },
+      "required": ["uid", "email"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Pastoral session appointment",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "pastorId": { "type": "string" },
+        "dateTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed"] },
+        "type": { "type": "string", "enum": ["online", "in-person"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "dateTime", "status"]
+    },
+    "Ministry": {
+      "title": "Ministry",
+      "description": "Church ministry information",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "leader": { "type": "string" }
+      },
+      "required": ["title", "description"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "Church event or special service",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["title", "date"]
+    },
+    "Donation": {
+      "title": "Donation",
+      "description": "Donation record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "type": { "type": "string", "enum": ["tithe", "offering", "project", "other"] },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] }
+      },
+      "required": ["amount", "type", "date", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointment bookings"
+    },
+    "/ministries/{ministryId}": {
+      "schema": "Ministry",
+      "description": "Ministries information"
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Church events"
+    },
+    "/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Donation records"
+    }
+  }
+}
