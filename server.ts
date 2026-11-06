@@ -35,6 +35,9 @@ async function startServer() {
     console.log("[GTRA Database] Store and RBAC system initialized.");
   } catch (dbErr) {
     console.error("[GTRA Database Error] Failed to initialize database:", dbErr);
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
   }
 
   // Mount RBAC and Auth API Router
