@@ -1,4 +1,4 @@
-export type UserStatus = 'active' | 'inactive';
+export type UserStatus = 'pending' | 'active' | 'inactive';
 
 export interface DepartmentAssignment {
   departmentId: string;
@@ -12,8 +12,9 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
+  authUserId?: string;
   loginIdentifier: string; // e.g. admin@system-gtra.org or fSiximba@system-gtra.org
-  passwordHash: string;
+  passwordHash?: string;
   mustChangePassword: boolean;
   status: UserStatus;
   departmentAssignments: DepartmentAssignment[];
@@ -108,6 +109,41 @@ export interface WorshipSchedule {
   createdAt: string;
 }
 
+export interface AppointmentRequest {
+  id: string;
+  userId?: string;
+  userName: string;
+  contactInfo: string;
+  userEmail: string;
+  dateTime: string;
+  timeSlot: string;
+  type: string;
+  notes: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  createdAt: string;
+}
+
+export interface EventRequest {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  requesterUserId: string;
+  requesterName: string;
+  requesterEmail: string;
+  status: 'pending' | 'approved' | 'declined';
+  createdAt: string;
+}
+
+export interface MediaAsset {
+  id: string;
+  name: string;
+  objectKey: string;
+  contentType: string;
+  size: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
 export interface AuditLog {
   id: string;
   timestamp: string;
@@ -119,6 +155,7 @@ export interface AuditLog {
 }
 
 export interface DatabaseSchema {
+  revision?: number;
   users: User[];
   departments: Department[];
   positions: Position[];
@@ -126,5 +163,8 @@ export interface DatabaseSchema {
   members: Member[];
   transactions: FinancialTransaction[];
   worshipSchedules: WorshipSchedule[];
+  appointments: AppointmentRequest[];
+  eventRequests: EventRequest[];
+  mediaAssets: MediaAsset[];
   auditLogs: AuditLog[];
 }

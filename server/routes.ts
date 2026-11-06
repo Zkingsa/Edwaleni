@@ -1,7 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getDatabase, saveDatabase, logAudit } from './db';
-import { hashPassword, comparePassword, generateToken, verifyToken, generateStaffIdentifier, resolveUserPermissions } from './auth';
+import { comparePassword, generateStaffIdentifier, resolveUserPermissions } from './auth';
 import { User, DepartmentAssignment, FinancialTransaction, WorshipSchedule, Member } from './types';
+import { getSupabaseAdmin, getSupabasePublic } from './supabase';
+import { sendStaffInvitation } from './brevo';
+import { createMediaDownloadUrl, createMediaUpload, verifyMediaUpload } from './r2';
+import { randomBytes } from 'node:crypto';
 
 export const apiRouter = Router();
 
@@ -16,28 +20,52 @@ export interface AuthRequest extends Request {
     status: string;
     permissions: string[];
     assignments: DepartmentAssignment[];
+    authUserId: string;
   };
 }
 
 // Authentication Middleware
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required. Please sign in.' });
   }
 
   const token = authHeader.split(' ')[1];
-  const payload = verifyToken(token);
-  if (!payload) {
-    return res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
-  }
+  try {
+    const { data: { user: authUser }, error } = await getSupabaseAdmin().auth.getUser(token);
+    if (error || !authUser?.email) {
+      return res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
+    }
 
-  if (payload.status === 'inactive') {
-    return res.status(403).json({ error: 'Your account has been deactivated. Contact the administrator.' });
-  }
+    const db = await getDatabase();
+    const profile = db.users.find((entry) =>
+      entry.authUserId === authUser.id || entry.email.toLowerCase() === authUser.email!.toLowerCase()
+    );
+    if (!profile) {
+      return res.status(401).json({ error: 'Account profile not found. Contact the system administrator.' });
+    }
+    if (profile.status === 'inactive') {
+      return res.status(403).json({ error: 'Your account has been deactivated. Contact the administrator.' });
+    }
 
-  req.user = payload;
-  next();
+    const permissions = resolveUserPermissions(profile, db.roles);
+    req.user = {
+      userId: profile.id,
+      loginIdentifier: profile.loginIdentifier,
+      name: profile.name,
+      email: profile.email,
+      mustChangePassword: profile.mustChangePassword,
+      status: profile.status,
+      permissions,
+      assignments: profile.departmentAssignments,
+      authUserId: authUser.id,
+    };
+    return next();
+  } catch (error) {
+    console.error('Authentication verification failed:', error);
+    return res.status(503).json({ error: 'Authentication service is unavailable. Try again shortly.' });
+  }
 }
 
 // Permission Checking Middleware (RBAC)
@@ -45,6 +73,9 @@ export function requirePermission(permission: string) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required.' });
+    }
+    if (req.user.status === 'pending') {
+      return res.status(403).json({ error: 'Verify your email and set your password before using the portal.' });
     }
 
     const isSystemAdmin = req.user.permissions.includes('users.deactivate') && req.user.permissions.includes('departments.manage');
@@ -95,13 +126,42 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'This account is deactivated. Please consult your administrator.' });
     }
 
-    const passwordMatch = await comparePassword(password, user.passwordHash);
-    if (!passwordMatch) {
+    const adminClient = getSupabaseAdmin();
+
+    if (!user.authUserId) {
+      const passwordMatch = user.passwordHash
+        ? await comparePassword(password, user.passwordHash)
+        : false;
+      if (!passwordMatch) {
+        return res.status(401).json({ error: 'Invalid username, staff identifier, or password.' });
+      }
+
+      const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+        email: user.email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: user.name },
+      });
+      if (createError || !created.user) {
+        console.error('Legacy account migration failed:', createError);
+        return res.status(503).json({ error: 'Could not migrate this account to secure sign-in. Contact the system administrator.' });
+      }
+
+      user.authUserId = created.user.id;
+      user.passwordHash = undefined;
+      user.updatedAt = new Date().toISOString();
+      await saveDatabase(db);
+    }
+
+    const { data: session, error: signInError } = await getSupabasePublic().auth.signInWithPassword({
+      email: user.email,
+      password,
+    });
+    if (signInError || !session.session) {
       return res.status(401).json({ error: 'Invalid username, staff identifier, or password.' });
     }
 
     const permissions = resolveUserPermissions(user, db.roles);
-    const token = generateToken(user, permissions);
 
     await logAudit(user.id, user.loginIdentifier, 'USER_LOGIN', {
       method: 'password',
@@ -109,7 +169,8 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
     });
 
     res.json({
-      token,
+      token: session.session.access_token,
+      refreshToken: session.session.refresh_token,
       user: {
         id: user.id,
         name: user.name,
@@ -165,8 +226,8 @@ apiRouter.post('/auth/register', async (req: Request, res: Response) => {
       });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
     }
 
     const db = await getDatabase();
@@ -182,7 +243,16 @@ apiRouter.post('/auth/register', async (req: Request, res: Response) => {
     const firstName = nameParts[0] || cleanName;
     const lastName = nameParts.slice(1).join(' ') || 'Member';
 
-    const passwordHash = await hashPassword(password);
+    const { data: authData, error: authError } = await getSupabaseAdmin().auth.admin.createUser({
+      email: cleanEmail,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: cleanName },
+    });
+    if (authError || !authData.user) {
+      return res.status(400).json({ error: authError?.message || 'Could not create your account.' });
+    }
+
     const newUser: User = {
       id: `usr-mbr-${Date.now()}`,
       name: cleanName,
@@ -190,7 +260,7 @@ apiRouter.post('/auth/register', async (req: Request, res: Response) => {
       lastName,
       email: cleanEmail,
       loginIdentifier: cleanEmail,
-      passwordHash,
+      authUserId: authData.user.id,
       mustChangePassword: false,
       status: 'active',
       departmentAssignments: [], // Ordinary member has no staff department assignments
@@ -214,14 +284,25 @@ apiRouter.post('/auth/register', async (req: Request, res: Response) => {
       ministryInterests: [],
     });
 
-    await saveDatabase(db);
+    try {
+      await saveDatabase(db);
+    } catch (error) {
+      await getSupabaseAdmin().auth.admin.deleteUser(authData.user.id);
+      throw error;
+    }
     await logAudit(newUser.id, newUser.loginIdentifier, 'MEMBER_REGISTERED', { email: cleanEmail });
 
-    const permissions: string[] = [];
-    const token = generateToken(newUser, permissions);
+    const { data: loginData, error: loginError } = await getSupabasePublic().auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+    if (loginError || !loginData.session) {
+      throw new Error('Account created, but automatic sign-in failed. Please sign in manually.');
+    }
 
     res.status(201).json({
-      token,
+      token: loginData.session.access_token,
+      refreshToken: loginData.session.refresh_token,
       user: {
         id: newUser.id,
         name: newUser.name,
@@ -233,7 +314,7 @@ apiRouter.post('/auth/register', async (req: Request, res: Response) => {
         mustChangePassword: false,
         assignments: [],
       },
-      permissions,
+      permissions: [],
       mustChangePassword: false,
     });
   } catch (err: any) {
@@ -302,18 +383,55 @@ apiRouter.post('/auth/change-password', requireAuth, async (req: AuthRequest, re
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const match = await comparePassword(currentPassword, user.passwordHash);
-    if (!match) {
+    const { error: verifyError } = await getSupabasePublic().auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (verifyError) {
       return res.status(400).json({ error: 'Current password provided is incorrect.' });
     }
 
-    user.passwordHash = await hashPassword(newPassword);
+    if (!user.authUserId) {
+      return res.status(400).json({ error: 'This account has not completed secure account migration.' });
+    }
+
+    const { error: updateError } = await getSupabaseAdmin().auth.admin.updateUserById(user.authUserId, {
+      password: newPassword,
+    });
+    if (updateError) {
+      console.error('Password update failed:', updateError);
+      return res.status(500).json({ error: 'Failed to update password.' });
+    }
+
+    user.passwordHash = undefined;
     user.mustChangePassword = false;
     user.updatedAt = new Date().toISOString();
 
     await saveDatabase(db);
     await logAudit(user.id, user.loginIdentifier, 'PASSWORD_CHANGED', {
       note: 'User successfully updated password and cleared mustChangePassword flag.',
+    });
+
+    apiRouter.post('/auth/activate', requireAuth, async (req: AuthRequest, res: Response) => {
+      try {
+        const db = await getDatabase();
+        const user = db.users.find((entry) => entry.id === req.user?.userId);
+        if (!user || user.authUserId !== req.user?.authUserId) {
+          return res.status(404).json({ error: 'Invited account profile was not found.' });
+        }
+
+        user.status = 'active';
+        user.mustChangePassword = false;
+        user.updatedAt = new Date().toISOString();
+        await saveDatabase(db);
+        await logAudit(user.id, user.loginIdentifier, 'STAFF_INVITATION_ACCEPTED', {
+          email: user.email,
+        });
+        return res.json({ success: true });
+      } catch (error) {
+        console.error('Invitation activation failed:', error);
+        return res.status(500).json({ error: 'Could not activate this account.' });
+      }
     });
 
     res.json({ success: true, message: 'Password has been updated successfully.' });
@@ -448,15 +566,14 @@ apiRouter.get('/staff', requireAuth, requirePermission('users.view'), async (_re
 
 /**
  * POST /api/staff
- * Creates a new staff member and auto-generates their GTRA staff login email
- * using the requested convention (initialSurname@domain).
+ * Creates a pending staff profile and sends a one-time Supabase invitation link through Brevo.
  */
 apiRouter.post('/staff', requireAuth, requirePermission('users.create'), async (req: AuthRequest, res: Response) => {
   try {
-    const { firstName, lastName, departmentId, positionId, roleId, phone } = req.body;
+    const { firstName, lastName, email, departmentId, positionId, roleId, phone } = req.body;
 
-    if (!firstName || !lastName || !departmentId || !positionId || !roleId) {
-      return res.status(400).json({ error: 'First name, surname, department, position, and role are required.' });
+    if (!firstName || !lastName || !email || !departmentId || !positionId || !roleId) {
+      return res.status(400).json({ error: 'First name, surname, contact email, department, position, and role are required.' });
     }
 
     const db = await getDatabase();
@@ -464,23 +581,50 @@ apiRouter.post('/staff', requireAuth, requirePermission('users.create'), async (
     if (!dept) {
       return res.status(400).json({ error: 'Selected department does not exist.' });
     }
+    if (!db.positions.some((position) => position.id === positionId && position.departmentId === departmentId)) {
+      return res.status(400).json({ error: 'Selected position does not belong to the selected department.' });
+    }
+    if (!db.roles.some((role) => role.id === roleId)) {
+      return res.status(400).json({ error: 'Selected application role does not exist.' });
+    }
 
-    // Auto-generate staff login identifier
+    const cleanEmail = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({ error: 'Enter a valid contact email address.' });
+    }
+    if (db.users.some((user) => user.email.toLowerCase() === cleanEmail)) {
+      return res.status(409).json({ error: 'An account with this email already exists.' });
+    }
+
     const loginIdentifier = generateStaffIdentifier(firstName, lastName, dept.categoryDomain, db.users);
+    const appUrl = process.env.APP_URL;
+    if (!appUrl) {
+      return res.status(503).json({ error: 'APP_URL must be configured before staff invitations can be sent.' });
+    }
 
-    const initialPassword = 'Gtra' + Math.floor(1000 + Math.random() * 9000) + '!';
-    const passwordHash = await hashPassword(initialPassword);
+    const { data: inviteData, error: inviteError } = await getSupabaseAdmin().auth.admin.generateLink({
+      type: 'invite',
+      email: cleanEmail,
+      options: {
+        redirectTo: `${appUrl.replace(/\/$/, '')}/?setup=invite`,
+        data: { full_name: `${String(firstName).trim()} ${String(lastName).trim()}` },
+      },
+    });
+    if (inviteError || !inviteData.user || !inviteData.properties.action_link) {
+      console.error('Supabase invitation generation failed:', inviteError);
+      return res.status(502).json({ error: 'Could not create an account invitation. Check Supabase Auth configuration.' });
+    }
 
     const newStaff: User = {
       id: `usr-stf-${Date.now()}`,
       name: `${firstName.trim()} ${lastName.trim()}`,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      email: loginIdentifier,
+      email: cleanEmail,
+      authUserId: inviteData.user.id,
       loginIdentifier,
-      passwordHash,
-      mustChangePassword: true, // Must change on first login!
-      status: 'active',
+      mustChangePassword: false,
+      status: 'pending',
       departmentAssignments: [
         {
           departmentId,
@@ -494,11 +638,30 @@ apiRouter.post('/staff', requireAuth, requirePermission('users.create'), async (
     };
 
     db.users.push(newStaff);
-    await saveDatabase(db);
+    try {
+      await saveDatabase(db);
+    } catch (error) {
+      await getSupabaseAdmin().auth.admin.deleteUser(inviteData.user.id);
+      throw error;
+    }
+    try {
+      await sendStaffInvitation(cleanEmail, newStaff.name, inviteData.properties.action_link);
+    } catch (error) {
+      try {
+        const rollback = await getDatabase();
+        rollback.users = rollback.users.filter((user) => user.id !== newStaff.id);
+        await saveDatabase(rollback);
+      } catch (rollbackError) {
+        console.error('Could not roll back staff profile after invitation email failure:', rollbackError);
+      }
+      await getSupabaseAdmin().auth.admin.deleteUser(inviteData.user.id);
+      throw error;
+    }
 
     await logAudit(req.user!.userId, req.user!.loginIdentifier, 'STAFF_CREATED', {
       staffId: newStaff.id,
       loginIdentifier: newStaff.loginIdentifier,
+      email: newStaff.email,
       department: dept.name,
       positionId,
       roleId,
@@ -514,7 +677,6 @@ apiRouter.post('/staff', requireAuth, requirePermission('users.create'), async (
         status: newStaff.status,
         assignments: newStaff.departmentAssignments,
       },
-      initialPassword, // Provided to admin to give to staff
     });
   } catch (err: any) {
     console.error('Create staff error:', err);
@@ -537,6 +699,12 @@ apiRouter.put('/staff/:id', requireAuth, requirePermission('users.update'), asyn
     if (!staff) {
       return res.status(404).json({ error: 'Staff member not found.' });
     }
+    if (staff.status === 'pending' && status === 'active') {
+      return res.status(400).json({ error: 'Pending invitations can only be activated by completing the emailed account setup link.' });
+    }
+    if (status !== undefined && status !== 'active' && status !== 'inactive') {
+      return res.status(400).json({ error: 'Staff status must be active or inactive.' });
+    }
 
     // Safety: prevent deactivating the default admin if it's the only admin
     if (staff.loginIdentifier === 'admin@system-gtra.org' && status === 'inactive') {
@@ -544,6 +712,15 @@ apiRouter.put('/staff/:id', requireAuth, requirePermission('users.update'), asyn
     }
 
     if (status) {
+      if (staff.authUserId) {
+        const { error: authUpdateError } = await getSupabaseAdmin().auth.admin.updateUserById(staff.authUserId, {
+          ban_duration: status === 'inactive' ? '876000h' : 'none',
+        });
+        if (authUpdateError) {
+          console.error('Could not update staff sign-in status:', authUpdateError);
+          return res.status(502).json({ error: 'Could not update the staff account in Supabase Auth.' });
+        }
+      }
       staff.status = status;
     }
 
@@ -562,7 +739,6 @@ apiRouter.put('/staff/:id', requireAuth, requirePermission('users.update'), asyn
             staff.id
           );
           staff.loginIdentifier = newIdent;
-          staff.email = newIdent;
         }
       }
     }
@@ -598,9 +774,12 @@ apiRouter.put('/staff/:id', requireAuth, requirePermission('users.update'), asyn
 // 4. CHURCH MEMBERS DIRECTORY (PASTOR & ADMIN)
 // -------------------------------------------------------------
 
-apiRouter.get('/members', requireAuth, requirePermission('members.view'), async (_req: AuthRequest, res: Response) => {
+apiRouter.get('/members', requireAuth, requirePermission('members.view'), async (req: AuthRequest, res: Response) => {
   const db = await getDatabase();
-  res.json(db.members);
+  if (!req.user!.permissions.includes('pastoral_care.view')) {
+    return res.json(db.members.map(({ pastoralNotes: _pastoralNotes, ...member }) => member));
+  }
+  return res.json(db.members);
 });
 
 apiRouter.post('/members', requireAuth, requirePermission('members.create'), async (req: AuthRequest, res: Response) => {
@@ -630,6 +809,153 @@ apiRouter.post('/members', requireAuth, requirePermission('members.create'), asy
     res.status(201).json(newMember);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to add member.' });
+  }
+});
+
+apiRouter.get('/appointments', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user?.permissions.includes('pastoral_care.view')) {
+    return res.status(403).json({ error: 'You do not have permission to view appointment requests.' });
+  }
+  const db = await getDatabase();
+  return res.json(db.appointments);
+});
+
+apiRouter.post('/appointments', async (req: Request, res: Response) => {
+  try {
+    const { userName, contactInfo, userEmail, dateTime, timeSlot, type, notes } = req.body;
+    if (!userName || !contactInfo || !dateTime || !timeSlot || !type) {
+      return res.status(400).json({ error: 'Name, contact information, date, time, and session type are required.' });
+    }
+    if (typeof notes === 'string' && notes.length > 500) {
+      return res.status(400).json({ error: 'Notes must be 500 characters or fewer.' });
+    }
+    if (!Number.isFinite(Date.parse(dateTime)) || Date.parse(dateTime) < Date.now()) {
+      return res.status(400).json({ error: 'Appointment date must be in the future.' });
+    }
+
+    const db = await getDatabase();
+    const appointment = {
+      id: `appt-${Date.now()}-${randomBytes(4).toString('hex')}`,
+      userName: String(userName).trim().slice(0, 100),
+      contactInfo: String(contactInfo).trim().slice(0, 255),
+      userEmail: typeof userEmail === 'string' ? userEmail.trim().slice(0, 255) : '',
+      dateTime: new Date(dateTime).toISOString(),
+      timeSlot: String(timeSlot).trim().slice(0, 50),
+      type: String(type).trim().slice(0, 50),
+      notes: typeof notes === 'string' ? notes.trim() : '',
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+    };
+
+    db.appointments.unshift(appointment);
+    await saveDatabase(db);
+    return res.status(201).json({ success: true, appointmentId: appointment.id });
+  } catch (error) {
+    console.error('Appointment request creation failed:', error);
+    return res.status(500).json({ error: 'Could not submit the appointment request.' });
+  }
+});
+
+apiRouter.get('/event-requests', requireAuth, requirePermission('events.manage'), async (_req: AuthRequest, res: Response) => {
+  const db = await getDatabase();
+  return res.json(db.eventRequests);
+});
+
+apiRouter.post('/event-requests', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { eventId, eventTitle } = req.body;
+    if (![eventId, eventTitle].every((value) => typeof value === 'string' && value.trim())) {
+      return res.status(400).json({ error: 'Event is required.' });
+    }
+    if (req.user!.status !== 'active') {
+      return res.status(403).json({ error: 'Complete your account setup before sending an event request.' });
+    }
+    const db = await getDatabase();
+    const requester = db.users.find((user) => user.id === req.user!.userId);
+    if (!requester) return res.status(404).json({ error: 'Your account profile was not found.' });
+    if (db.eventRequests.some((entry) => entry.eventId === eventId.trim() && entry.requesterUserId === requester.id)) {
+      return res.status(409).json({ error: 'You have already sent a request for this event.' });
+    }
+    const request = {
+      id: `event-request-${randomBytes(8).toString('hex')}`,
+      eventId: eventId.trim().slice(0, 100),
+      eventTitle: eventTitle.trim().slice(0, 150),
+      requesterUserId: requester.id,
+      requesterName: requester.name,
+      requesterEmail: requester.email,
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+    };
+    db.eventRequests.unshift(request);
+    await saveDatabase(db);
+    return res.status(201).json({ success: true });
+  } catch (error) {
+    console.error('Event request creation failed:', error);
+    return res.status(500).json({ error: 'Could not submit the event request.' });
+  }
+});
+
+apiRouter.get('/media/assets', requireAuth, requirePermission('media.assets.view'), async (_req: AuthRequest, res: Response) => {
+  const db = await getDatabase();
+  res.json(db.mediaAssets);
+});
+
+apiRouter.post('/media/uploads', requireAuth, requirePermission('media.assets.manage'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, contentType, size } = req.body;
+    if (typeof name !== 'string' || typeof contentType !== 'string') {
+      return res.status(400).json({ error: 'File name and content type are required.' });
+    }
+    const upload = await createMediaUpload(req.user!.userId, name, contentType, Number(size));
+    return res.json(upload);
+  } catch (error) {
+    console.error('Media upload URL creation failed:', error);
+    return res.status(400).json({ error: error instanceof Error ? error.message : 'Could not prepare media upload.' });
+  }
+});
+
+apiRouter.post('/media/assets', requireAuth, requirePermission('media.assets.manage'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, objectKey } = req.body;
+    if (typeof name !== 'string' || typeof objectKey !== 'string' ||
+        !objectKey.startsWith(`church-media/${req.user!.userId}/`)) {
+      return res.status(400).json({ error: 'Invalid media upload details.' });
+    }
+
+    const file = await verifyMediaUpload(objectKey);
+    const db = await getDatabase();
+    const asset = {
+      id: `media-${randomBytes(12).toString('hex')}`,
+      name: name.trim().slice(0, 150),
+      objectKey,
+      contentType: file.contentType,
+      size: file.size,
+      uploadedBy: req.user!.userId,
+      uploadedAt: new Date().toISOString(),
+    };
+    db.mediaAssets.unshift(asset);
+    await saveDatabase(db);
+    await logAudit(req.user!.userId, req.user!.loginIdentifier, 'MEDIA_ASSET_UPLOADED', {
+      assetId: asset.id,
+      name: asset.name,
+    });
+    return res.status(201).json(asset);
+  } catch (error) {
+    console.error('Media asset registration failed:', error);
+    return res.status(400).json({ error: error instanceof Error ? error.message : 'Could not save media asset.' });
+  }
+});
+
+apiRouter.get('/media/assets/:id/url', requireAuth, requirePermission('media.assets.view'), async (req: AuthRequest, res: Response) => {
+  try {
+    const db = await getDatabase();
+    const asset = db.mediaAssets.find((entry) => entry.id === req.params.id);
+    if (!asset) return res.status(404).json({ error: 'Media asset not found.' });
+    const url = await createMediaDownloadUrl(asset.objectKey);
+    return res.json({ url, expiresIn: 300 });
+  } catch (error) {
+    console.error('Media download link creation failed:', error);
+    return res.status(500).json({ error: 'Could not create a media download link.' });
   }
 });
 

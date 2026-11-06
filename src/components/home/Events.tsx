@@ -4,6 +4,7 @@ import { MapPin, Clock, Calendar, CheckCircle2, BellRing } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/src/hooks/useAuth";
 
 const events = [
   {
@@ -32,12 +33,36 @@ const events = [
   }
 ];
 
-export function Events() {
+export function Events({ onOpenLogin }: { onOpenLogin?: () => void }) {
+  const { user, token } = useAuth();
   const [registered, setRegistered] = useState<Record<string, boolean>>({});
 
-  const handleRegister = (id: string, title: string) => {
-    setRegistered(prev => ({ ...prev, [id]: true }));
-    toast.success(`You're on the list for "${title}"! A reminder will be sent.`);
+  const handleRegister = async (id: string, title: string) => {
+    if (!user) {
+      toast.info("Sign in to send an event request.");
+      onOpenLogin?.();
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/event-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          eventId: id,
+          eventTitle: title,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not send event request.");
+      setRegistered((prev) => ({ ...prev, [id]: true }));
+      toast.success(`Your request for "${title}" has been sent.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send event request.");
+    }
   };
 
   return (
@@ -126,7 +151,7 @@ export function Events() {
                   >
                     {registered[event.id] ? (
                       <span className="flex items-center justify-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Reminder Saved
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Request Sent
                       </span>
                     ) : (
                       <span className="flex items-center justify-center gap-2">

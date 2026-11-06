@@ -11,6 +11,7 @@ export const INITIAL_ROLES: Role[] = [
       'members.view', 'members.create', 'members.update', 'members.deactivate',
       'finance.transactions.view', 'finance.transactions.create', 'finance.transactions.approve', 'finance.reports.view', 'finance.reconciliation.manage',
       'worship.schedule.view', 'worship.schedule.manage', 'worship.members.manage', 'worship.attendance.manage',
+      'media.assets.view', 'media.assets.manage',
       'announcements.create', 'announcements.approve',
       'events.manage',
       'reports.view',
@@ -114,7 +115,8 @@ export const INITIAL_ROLES: Role[] = [
     name: 'Media Manager',
     description: 'Oversees audio/visual production, livestream operations, and public church announcements.',
     permissions: [
-      'events.manage', 'announcements.create', 'announcements.approve'
+      'events.manage', 'announcements.create', 'announcements.approve',
+      'media.assets.view', 'media.assets.manage'
     ]
   },
   {
@@ -130,7 +132,7 @@ export const INITIAL_ROLES: Role[] = [
     name: 'Department Leader',
     description: 'Coordinates departmental activities, schedules, and ministry volunteers.',
     permissions: [
-      'events.manage', 'announcements.create', 'reports.view'
+      'members.view', 'events.manage', 'announcements.create', 'reports.view'
     ]
   },
   {

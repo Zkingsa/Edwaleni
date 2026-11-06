@@ -1,5 +1,5 @@
 import { getDatabase, seedInitialData } from './db';
-import { generateStaffIdentifier, hashPassword, comparePassword, generateToken, verifyToken, resolveUserPermissions } from './auth';
+import { generateStaffIdentifier, hashPassword, comparePassword } from './auth';
 import { User, Role } from './types';
 
 async function runTests() {
@@ -109,15 +109,15 @@ async function runTests() {
   assert(pastorRole?.permissions.includes('pastoral_care.view') === true, 'Pastor has pastoral_care.view');
   assert(pastorRole?.permissions.includes('finance.transactions.approve') === false, 'Pastor does not have unrestricted financial approval');
 
-  // TEST 6: JWT Token Lifecycle
-  console.log('\n--- Test Suite 6: JWT Token Security ---');
-  const token = generateToken(admin!, ['departments.manage', 'users.view']);
-  const decoded = verifyToken(token);
-  assert(decoded?.userId === admin!.id, 'JWT token decodes valid user id');
-  assert(decoded?.loginIdentifier === 'admin@system-gtra.org', 'JWT token contains staff login identifier');
+  // TEST 6: Department Role Permissions
+  console.log('\n--- Test Suite 6: Department Role Access ---');
+  const departmentLeaderRole = db.roles.find(r => r.id === 'department_leader');
+  assert(departmentLeaderRole?.permissions.includes('members.view') === true, 'Department leaders can view church members');
+  assert(departmentLeaderRole?.permissions.includes('events.manage') === true, 'Department leaders can view and manage event requests');
 
-  const invalidToken = verifyToken('corrupted.token.value');
-  assert(invalidToken === null, 'Corrupted token safely rejected');
+  const mediaRole = db.roles.find(r => r.id === 'media_manager');
+  assert(mediaRole?.permissions.includes('media.assets.view') === true, 'Media managers can view the media library');
+  assert(mediaRole?.permissions.includes('media.assets.manage') === true, 'Media managers can upload media');
 
   console.log('\n======================================================');
   console.log(`TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);

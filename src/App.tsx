@@ -15,6 +15,7 @@ import { DonationPortal } from "./components/home/DonationPortal";
 import { AboutPastor } from "./components/home/AboutPastor";
 import { AuthModal } from "./components/auth/AuthModal";
 import { PasswordChangeModal } from "./components/auth/PasswordChangeModal";
+import { PasswordSetupModal } from "./components/auth/PasswordSetupModal";
 import { StaffPortal } from "./components/portal/StaffPortal";
 import { Toaster } from "sonner";
 
@@ -45,7 +46,7 @@ export default function App() {
           <Hero />
           <Ministries />
           <AboutPastor />
-          <Events />
+          <Events onOpenLogin={handleOpenLogin} />
           <AppointmentSection onOpenLogin={handleOpenLogin} />
           <DonationPortal />
         </main>
@@ -60,6 +61,7 @@ export default function App() {
 
         {/* Forced First-Login Password Change Modal for Default Admin & New Staff */}
         <PasswordChangeModal />
+        <PasswordSetupModal />
 
         {/* Department & Staff RBAC Management Portal */}
         <StaffPortal 

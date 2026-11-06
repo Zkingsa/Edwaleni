@@ -84,8 +84,8 @@ export function AuthModal({ isOpen, initialTab = "login", onClose, onSuccess }: 
       return;
     }
 
-    if (regPassword.length < 6) {
-      setErrorMessage("Password must be at least 6 characters long.");
+    if (regPassword.length < 8) {
+      setErrorMessage("Password must be at least 8 characters long.");
       return;
     }
 
@@ -317,7 +317,7 @@ export function AuthModal({ isOpen, initialTab = "login", onClose, onSuccess }: 
                   <Input
                     id="reg-pw"
                     type="password"
-                    placeholder="Min 6 characters"
+                    placeholder="Min 8 characters"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     className="h-11 rounded-xl border-stone-300 focus-visible:ring-church-gold text-sm"

@@ -3,29 +3,65 @@ import path from 'path';
 import { DatabaseSchema, AuditLog, User } from './types';
 import { INITIAL_DEPARTMENTS, INITIAL_POSITIONS, INITIAL_ROLES } from './seedData';
 import { hashPassword } from './auth';
+import { getSupabaseAdmin } from './supabase';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DATA_FILE = path.join(DATA_DIR, 'church-store.json');
+const DEFAULT_DATA_FILE = path.join(process.cwd(), 'data', 'church-store.json');
 
 // In-memory cache to ensure speed and consistency
 let cache: DatabaseSchema | null = null;
+const STATE_ID = 1;
+
+function isSupabaseConfigured() {
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
+}
 
 function ensureDataDirectory() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const directory = path.dirname(getDataFile());
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true });
   }
 }
 
+function getDataFile() {
+  return process.env.CHURCH_DATA_FILE || DEFAULT_DATA_FILE;
+}
+
 export async function getDatabase(): Promise<DatabaseSchema> {
-  if (cache) {
+  if (!isSupabaseConfigured() && cache) {
     return cache;
   }
 
   ensureDataDirectory();
+  const dataFile = getDataFile();
 
-  if (fs.existsSync(DATA_FILE)) {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseAdmin();
+    const { data: row, error } = await supabase
+      .from('church_state')
+      .select('payload, revision')
+      .eq('id', STATE_ID)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to load church data from Supabase: ${error.message}`);
+    }
+
+    if (row) {
+      const state = row.payload as DatabaseSchema;
+      state.revision = Number(row.revision);
+      state.appointments ||= [];
+      state.eventRequests ||= [];
+      state.mediaAssets ||= [];
+      await seedInitialData(state);
+      return state;
+    }
+  } else if (process.env.NODE_ENV === 'production') {
+    throw new Error('Supabase is required in production. Configure SUPABASE_URL and SUPABASE_SECRET_KEY.');
+  }
+
+  if (fs.existsSync(dataFile)) {
     try {
-      const content = fs.readFileSync(DATA_FILE, 'utf-8');
+      const content = fs.readFileSync(dataFile, 'utf-8');
       cache = JSON.parse(content) as DatabaseSchema;
       // Ensure all top-level arrays exist
       if (!cache.users) cache.users = [];
@@ -35,7 +71,14 @@ export async function getDatabase(): Promise<DatabaseSchema> {
       if (!cache.members) cache.members = [];
       if (!cache.transactions) cache.transactions = [];
       if (!cache.worshipSchedules) cache.worshipSchedules = [];
+      if (!cache.appointments) cache.appointments = [];
+      if (!cache.eventRequests) cache.eventRequests = [];
+      if (!cache.mediaAssets) cache.mediaAssets = [];
       if (!cache.auditLogs) cache.auditLogs = [];
+      cache.revision = 0;
+      if (isSupabaseConfigured()) {
+        await seedInitialData(cache);
+      }
       return cache;
     } catch (err) {
       console.error('Error reading church-store.json, re-initializing:', err);
@@ -44,6 +87,7 @@ export async function getDatabase(): Promise<DatabaseSchema> {
 
   // Initialize empty schema and run seed
   cache = {
+    revision: 0,
     users: [],
     departments: [],
     positions: [],
@@ -51,6 +95,9 @@ export async function getDatabase(): Promise<DatabaseSchema> {
     members: [],
     transactions: [],
     worshipSchedules: [],
+    appointments: [],
+    eventRequests: [],
+    mediaAssets: [],
     auditLogs: [],
   };
 
@@ -60,11 +107,34 @@ export async function getDatabase(): Promise<DatabaseSchema> {
 }
 
 export async function saveDatabase(data: DatabaseSchema): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseAdmin();
+    const expectedRevision = Number(data.revision || 0);
+    const { revision: _revision, ...payload } = data;
+    const { data: nextRevision, error } = await supabase.rpc('save_church_state', {
+      p_id: STATE_ID,
+      p_expected_revision: expectedRevision,
+      p_payload: payload,
+    });
+
+    if (error) {
+      throw new Error(`Failed to save church data to Supabase: ${error.message}`);
+    }
+    if (typeof nextRevision !== 'number') {
+      throw new Error('Church data changed in another request. Reload and retry your changes.');
+    }
+
+    data.revision = nextRevision;
+    cache = null;
+    return;
+  }
+
   ensureDataDirectory();
   cache = data;
-  const tempFile = `${DATA_FILE}.tmp`;
+  const dataFile = getDataFile();
+  const tempFile = `${dataFile}.tmp`;
   fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tempFile, DATA_FILE);
+  fs.renameSync(tempFile, dataFile);
 }
 
 /**
@@ -117,6 +187,19 @@ export async function seedInitialData(db: DatabaseSchema): Promise<void> {
   // 3. Seed Positions if missing
   if (db.positions.length === 0) {
     db.positions = [...INITIAL_POSITIONS];
+    changed = true;
+  }
+
+  for (const roleId of ['system_admin', 'media_manager']) {
+    const role = db.roles.find((entry) => entry.id === roleId);
+    if (role && !role.permissions.includes('media.assets.manage')) {
+      role.permissions.push('media.assets.view', 'media.assets.manage');
+      changed = true;
+    }
+  }
+  const departmentLeader = db.roles.find((entry) => entry.id === 'department_leader');
+  if (departmentLeader && !departmentLeader.permissions.includes('members.view')) {
+    departmentLeader.permissions.push('members.view');
     changed = true;
   }
 

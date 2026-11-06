@@ -1,8 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { User, Role } from './types';
-
-export const JWT_SECRET = process.env.JWT_SECRET || 'gtra-church-secret-key-edwaleni-2026-secure';
 
 export async function hashPassword(plainText: string): Promise<string> {
   return bcrypt.hash(plainText, 10);
@@ -10,31 +7,6 @@ export async function hashPassword(plainText: string): Promise<string> {
 
 export async function comparePassword(plainText: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plainText, hash);
-}
-
-export function generateToken(user: User, permissions: string[]): string {
-  return jwt.sign(
-    {
-      userId: user.id,
-      loginIdentifier: user.loginIdentifier,
-      name: user.name,
-      email: user.email,
-      mustChangePassword: user.mustChangePassword,
-      status: user.status,
-      permissions,
-      assignments: user.departmentAssignments
-    },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-}
-
-export function verifyToken(token: string): any {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch {
-    return null;
-  }
 }
 
 /**

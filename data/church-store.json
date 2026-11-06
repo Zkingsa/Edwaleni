@@ -537,7 +537,9 @@
         "announcements.approve",
         "events.manage",
         "reports.view",
-        "pastoral_care.view"
+        "pastoral_care.view",
+        "media.assets.view",
+        "media.assets.manage"
       ]
     },
     {
@@ -656,7 +658,9 @@
       "permissions": [
         "events.manage",
         "announcements.create",
-        "announcements.approve"
+        "announcements.approve",
+        "media.assets.view",
+        "media.assets.manage"
       ]
     },
     {
@@ -677,7 +681,8 @@
       "permissions": [
         "events.manage",
         "announcements.create",
-        "reports.view"
+        "reports.view",
+        "members.view"
       ]
     },
     {
@@ -946,5 +951,9 @@
         "note": "Default System Administrator created with temporary initial password. Password change required on first login."
       }
     }
-  ]
+  ],
+  "appointments": [],
+  "eventRequests": [],
+  "mediaAssets": [],
+  "revision": 0
 }

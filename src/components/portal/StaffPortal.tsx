@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
   Church, Users, Shield, DollarSign, Music, BookOpen, 
   Plus, Check, X, Clock, Calendar, CheckCircle2, AlertCircle, 
-  FileText, ShieldCheck, UserCheck, RefreshCw, Layers, Lock, ChevronRight
+  FileText, ShieldCheck, UserCheck, RefreshCw, Layers, Lock, ChevronRight, Upload, Image
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,7 +20,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   const { user, token, permissions, isSystemAdmin, hasPermission, isStaff } = useAuth();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<"admin" | "pastor" | "finance" | "worship" | "profile">("admin");
+  const [activeTab, setActiveTab] = useState<"admin" | "pastor" | "finance" | "worship" | "media" | "profile">("admin");
   const [loading, setLoading] = useState(false);
 
   // Data states
@@ -31,6 +31,11 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   const [members, setMembers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [worshipSchedules, setWorshipSchedules] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [eventRequests, setEventRequests] = useState<any[]>([]);
+  const [mediaAssets, setMediaAssets] = useState<any[]>([]);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   // Modals & sub-forms inside portal
@@ -42,6 +47,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   // New staff form state
   const [newStaffFirst, setNewStaffFirst] = useState("");
   const [newStaffLast, setNewStaffLast] = useState("");
+  const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffDept, setNewStaffDept] = useState("");
   const [newStaffPos, setNewStaffPos] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
@@ -80,6 +86,8 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
       setActiveTab("finance");
     } else if (hasPermission("worship.schedule.view")) {
       setActiveTab("worship");
+    } else if (hasPermission("media.assets.view")) {
+      setActiveTab("media");
     } else {
       setActiveTab("profile");
     }
@@ -116,6 +124,16 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
         if (mbrRes.ok) setMembers(await mbrRes.json());
       }
 
+      if (hasPermission("pastoral_care.view") || isSystemAdmin) {
+        const appointmentRes = await fetch("/api/appointments", { headers: { Authorization: `Bearer ${token}` } });
+        if (appointmentRes.ok) setAppointments(await appointmentRes.json());
+      }
+
+      if (hasPermission("events.manage") || isSystemAdmin) {
+        const eventRequestRes = await fetch("/api/event-requests", { headers: { Authorization: `Bearer ${token}` } });
+        if (eventRequestRes.ok) setEventRequests(await eventRequestRes.json());
+      }
+
       // 4. Financial transactions if authorized
       if (hasPermission("finance.transactions.view") || isSystemAdmin) {
         const txRes = await fetch("/api/finance/transactions", { headers: { Authorization: `Bearer ${token}` } });
@@ -126,6 +144,11 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
       if (hasPermission("worship.schedule.view") || isSystemAdmin) {
         const wsRes = await fetch("/api/worship/schedules", { headers: { Authorization: `Bearer ${token}` } });
         if (wsRes.ok) setWorshipSchedules(await wsRes.json());
+      }
+
+      if (hasPermission("media.assets.view") || isSystemAdmin) {
+        const mediaRes = await fetch("/api/media/assets", { headers: { Authorization: `Bearer ${token}` } });
+        if (mediaRes.ok) setMediaAssets(await mediaRes.json());
       }
     } catch (err) {
       console.error("Failed to load portal data:", err);
@@ -145,8 +168,8 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   // Handlers
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStaffFirst || !newStaffLast || !newStaffDept || !newStaffPos || !newStaffRole) {
-      toast.error("Please fill in all required staff fields.");
+    if (!newStaffFirst || !newStaffLast || !newStaffEmail || !newStaffDept || !newStaffPos || !newStaffRole) {
+      toast.error("Please fill in all required staff fields, including their email address.");
       return;
     }
 
@@ -157,6 +180,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
         body: JSON.stringify({
           firstName: newStaffFirst,
           lastName: newStaffLast,
+          email: newStaffEmail,
           departmentId: newStaffDept,
           positionId: newStaffPos,
           roleId: newStaffRole,
@@ -170,18 +194,74 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
         return;
       }
 
-      toast.success(
-        `Staff member created!\nLogin: ${data.staff.loginIdentifier}\nTemporary Password: ${data.initialPassword}`,
-        { duration: 10000 }
-      );
+      toast.success(`Invitation sent to ${data.staff.email}. They will set their own password.`);
 
       setShowAddStaffModal(false);
       setNewStaffFirst("");
       setNewStaffLast("");
+      setNewStaffEmail("");
       setNewStaffPhone("");
       loadData();
     } catch {
       toast.error("Network error creating staff member.");
+    }
+  };
+
+  const handleUploadMedia = async () => {
+    if (!mediaFile || !token) {
+      toast.error("Choose a media file first.");
+      return;
+    }
+
+    setMediaUploading(true);
+    try {
+      const uploadResponse = await fetch("/api/media/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: mediaFile.name,
+          contentType: mediaFile.type,
+          size: mediaFile.size,
+        }),
+      });
+      const upload = await uploadResponse.json();
+      if (!uploadResponse.ok) throw new Error(upload.error || "Could not prepare upload.");
+
+      const fileResponse = await fetch(upload.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": mediaFile.type },
+        body: mediaFile,
+      });
+      if (!fileResponse.ok) throw new Error("Cloud storage rejected the media upload.");
+
+      const saveResponse = await fetch("/api/media/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: mediaFile.name, objectKey: upload.objectKey }),
+      });
+      const asset = await saveResponse.json();
+      if (!saveResponse.ok) throw new Error(asset.error || "Could not save media details.");
+
+      setMediaAssets((current) => [asset, ...current]);
+      setMediaFile(null);
+      toast.success("Media uploaded successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Media upload failed.");
+    } finally {
+      setMediaUploading(false);
+    }
+  };
+
+  const handleOpenMedia = async (assetId: string) => {
+    try {
+      const response = await fetch(`/api/media/assets/${assetId}/url`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not open media.");
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not open media.");
     }
   };
 
@@ -477,6 +557,20 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
             </button>
           )}
 
+          {(hasPermission("media.assets.view") || isSystemAdmin) && (
+            <button
+              onClick={() => setActiveTab("media")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "media"
+                  ? "bg-church-rock text-white shadow-xs"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-white/60"
+              }`}
+            >
+              <Image className="w-4 h-4 text-amber-400" />
+              <span>Media Library</span>
+            </button>
+          )}
+
           <button
             onClick={() => setActiveTab("profile")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -506,26 +600,30 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (departments.length > 0) setNewStaffDept(departments[0].id);
-                      if (positions.length > 0) setNewStaffPos(positions[0].id);
-                      if (roles.length > 0) setNewStaffRole(roles[0].id);
-                      setShowAddStaffModal(true);
-                    }}
-                    className="bg-church-gold hover:bg-church-gold-hover text-white shadow-xs text-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Staff Member
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowAddDeptModal(true)}
-                    className="border-stone-300 text-stone-700 hover:bg-stone-100 text-xs"
-                  >
-                    <Layers className="w-3.5 h-3.5 mr-1" /> New Department
-                  </Button>
+                  {hasPermission("users.create") && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (departments.length > 0) setNewStaffDept(departments[0].id);
+                        if (positions.length > 0) setNewStaffPos(positions[0].id);
+                        if (roles.length > 0) setNewStaffRole(roles[0].id);
+                        setShowAddStaffModal(true);
+                      }}
+                      className="bg-church-gold hover:bg-church-gold-hover text-white shadow-xs text-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Staff Member
+                    </Button>
+                  )}
+                  {hasPermission("departments.manage") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowAddDeptModal(true)}
+                      className="border-stone-300 text-stone-700 hover:bg-stone-100 text-xs"
+                    >
+                      <Layers className="w-3.5 h-3.5 mr-1" /> New Department
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -567,6 +665,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                               <span className="bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-semibold">
                                 {stf.loginIdentifier}
                               </span>
+                              <div className="mt-1 font-sans text-[11px] text-stone-500">{stf.email}</div>
                             </td>
                             <td className="p-3.5">
                               <div className="font-medium">{dept?.name || "Church Administration"}</div>
@@ -582,14 +681,18 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
                                   stf.status === "active"
                                     ? "bg-emerald-100 text-emerald-800"
-                                    : "bg-red-100 text-red-800"
+                                    : stf.status === "pending"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-red-100 text-red-800"
                                 }`}
                               >
-                                {stf.status}
+                                {stf.status === "pending" ? "Invitation pending" : stf.status}
                               </span>
                             </td>
                             <td className="p-3.5 pr-5 text-right">
-                              {stf.loginIdentifier !== "admin@system-gtra.org" ? (
+                              {stf.status === "pending" ? (
+                                <span className="text-[11px] text-amber-700 italic">Complete emailed setup</span>
+                              ) : stf.loginIdentifier !== "admin@system-gtra.org" ? (
                                 <button
                                   type="button"
                                   onClick={() => handleToggleStaffStatus(stf.id, stf.status)}
@@ -602,7 +705,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                                   {stf.status === "active" ? "Deactivate" : "Activate"}
                                 </button>
                               ) : (
-                                <span className="text-[11px] text-stone-400 italic">Primary Admin</span>
+                                <span className="text-[11px] text-stone-400 italic">Primary admin</span>
                               )}
                             </td>
                           </tr>
@@ -681,6 +784,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                   </table>
                 </div>
               </div>
+
             </div>
           )}
 
@@ -752,6 +856,66 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                   </table>
                 </div>
               </div>
+
+              {(hasPermission("pastoral_care.view") || isSystemAdmin) && (
+                <div className="bg-white rounded-2xl border border-church-stone shadow-xs overflow-hidden">
+                  <div className="p-4 border-b border-church-stone bg-church-cream/40">
+                    <h3 className="font-serif text-lg font-bold text-stone-900">
+                      Pastoral Appointment Requests ({appointments.length})
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-stone-100">
+                    {appointments.map((appointment) => (
+                      <div key={appointment.id} className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-stone-900">{appointment.userName}</p>
+                          <p className="text-xs text-stone-500">{appointment.contactInfo} · {appointment.type}</p>
+                          {appointment.notes && <p className="mt-1 text-sm text-stone-600">{appointment.notes}</p>}
+                        </div>
+                        <div className="text-left text-sm sm:text-right">
+                          <p className="font-medium text-stone-800">{new Date(appointment.dateTime).toLocaleDateString()}</p>
+                          <p className="text-xs text-stone-500">{appointment.timeSlot} · {appointment.status}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {appointments.length === 0 && <p className="p-4 text-sm text-stone-500">No appointment requests yet.</p>}
+                  </div>
+                </div>
+              )}
+
+              {(hasPermission("events.manage") || isSystemAdmin) && (
+                <div className="bg-white rounded-2xl border border-church-stone shadow-xs overflow-hidden">
+                  <div className="p-4 border-b border-church-stone bg-church-cream/40">
+                    <h3 className="font-serif text-lg font-bold text-stone-900">
+                      Event Requests ({eventRequests.length})
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-stone-100">
+                    {eventRequests.map((request) => (
+                      <div key={request.id} className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-stone-900">{request.eventTitle}</p>
+                          <p className="text-xs text-stone-500">{request.requesterName} · {request.requesterEmail}</p>
+                        </div>
+                        <p className="text-xs text-stone-500">{new Date(request.createdAt).toLocaleString()} · {request.status}</p>
+                      </div>
+                    ))}
+                    {eventRequests.length === 0 && <p className="p-4 text-sm text-stone-500">No event requests yet.</p>}
+                  </div>
+                </div>
+              )}
+
+              {(hasPermission("worship.schedule.view") || isSystemAdmin) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {worshipSchedules.map((schedule) => (
+                    <Card key={schedule.id} className="border border-church-stone bg-white p-4">
+                      <p className="font-semibold text-stone-900">{schedule.title}</p>
+                      <p className="mt-1 text-sm text-stone-600">{schedule.date} · {schedule.time}</p>
+                      <p className="text-xs text-stone-500">{schedule.venue}</p>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -986,7 +1150,47 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
             </div>
           )}
 
-          {/* TAB 5: MY ACCOUNT & PERMISSIONS */}
+          {/* TAB 5: MEDIA LIBRARY */}
+          {activeTab === "media" && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-church-stone bg-white p-5 shadow-xs">
+                <h2 className="font-serif text-2xl font-bold text-stone-900">Media Library</h2>
+                <p className="mt-1 text-sm text-stone-500">Manage church photos, audio, video, and documents.</p>
+                {hasPermission("media.assets.manage") && (
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="flex-1">
+                      <Label htmlFor="media-upload" className="text-xs">Choose a file (up to 50 MB)</Label>
+                      <Input
+                        id="media-upload"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,audio/mpeg,audio/mp4,video/mp4,application/pdf"
+                        onChange={(event) => setMediaFile(event.target.files?.[0] || null)}
+                      />
+                    </div>
+                    <Button disabled={!mediaFile || mediaUploading} onClick={handleUploadMedia} className="bg-church-gold text-white hover:bg-church-gold-hover">
+                      <Upload className="mr-2 h-4 w-4" />
+                      {mediaUploading ? "Uploading..." : "Upload media"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {mediaAssets.map((asset) => (
+                  <Card key={asset.id} className="flex items-center justify-between gap-3 border border-church-stone bg-white p-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-stone-900">{asset.name}</p>
+                      <p className="text-xs text-stone-500">{asset.contentType} · {(asset.size / 1024 / 1024).toFixed(1)} MB</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleOpenMedia(asset.id)}>Open</Button>
+                  </Card>
+                ))}
+                {mediaAssets.length === 0 && <p className="text-sm text-stone-500">No media has been uploaded yet.</p>}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: MY ACCOUNT & PERMISSIONS */}
           {activeTab === "profile" && (
             <div className="max-w-3xl mx-auto space-y-6">
               <Card className="p-6 bg-white border border-church-stone rounded-3xl shadow-xs">
@@ -1060,7 +1264,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
               </button>
             </div>
             <p className="text-xs text-stone-500 mb-5">
-              Staff login identifier is automatically generated using GTRA convention: first-name initial and surname with the department domain.
+              Enter their real email address. Their portal login identifier is generated automatically, and a secure setup link will be sent to that email.
             </p>
             <form onSubmit={handleCreateStaff} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
@@ -1082,6 +1286,17 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label className="text-xs">Contact Email</Label>
+                <Input
+                  type="email"
+                  placeholder="name@example.com"
+                  value={newStaffEmail}
+                  onChange={(e) => setNewStaffEmail(e.target.value)}
+                  required
+                />
               </div>
 
               <div>
@@ -1144,7 +1359,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
               </div>
 
               <Button type="submit" className="w-full bg-church-gold hover:bg-church-gold-hover text-white rounded-xl h-11 mt-2">
-                Generate Staff Account
+                Create Account & Send Invitation
               </Button>
             </form>
           </div>

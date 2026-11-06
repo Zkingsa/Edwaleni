@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { GoogleAuthProvider, signInWithPopup, signOut as fbSignOut } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 
 export interface DepartmentAssignment {
   departmentId: string;
@@ -38,7 +37,6 @@ interface AuthContextType {
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +47,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!supabase) {
+      if (!token) setLoading(false);
+      return;
+    }
+
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      const sessionToken = data.session?.access_token || localStorage.getItem("gtra_token");
+      if (sessionToken) {
+        localStorage.setItem("gtra_token", sessionToken);
+        setToken(sessionToken);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      const sessionToken = session?.access_token || null;
+      if (sessionToken) {
+        localStorage.setItem("gtra_token", sessionToken);
+        setToken(sessionToken);
+      } else {
+        localStorage.removeItem("gtra_token");
+        setToken(null);
+        setUser(null);
+        setPermissions([]);
+        setMustChangePassword(false);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const fetchProfile = useCallback(async (authToken: string) => {
     try {
@@ -114,6 +152,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || "Login failed. Check credentials." };
       }
 
+      if (supabase && data.refreshToken) {
+        await supabase.auth.setSession({ access_token: data.token, refresh_token: data.refreshToken });
+      }
       localStorage.setItem("gtra_token", data.token);
       setToken(data.token);
 
@@ -156,6 +197,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: resData.error || "Registration failed." };
       }
 
+      if (supabase && resData.refreshToken) {
+        await supabase.auth.setSession({ access_token: resData.token, refresh_token: resData.refreshToken });
+      }
       localStorage.setItem("gtra_token", resData.token);
       setToken(resData.token);
 
@@ -220,25 +264,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setPermissions([]);
     setMustChangePassword(false);
-    try {
-      await fbSignOut(auth);
-    } catch {
-      // ignore
-    }
+    if (supabase) await supabase.auth.signOut();
   };
 
   const refreshProfile = async () => {
     if (token) {
       await fetchProfile(token);
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.warn("Google popup error (preview/iframe fallback to GTRA dialog):", error);
     }
   };
 
@@ -272,7 +303,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         changePassword,
         signOut,
         refreshProfile,
-        signInWithGoogle,
       }}
     >
       {children}

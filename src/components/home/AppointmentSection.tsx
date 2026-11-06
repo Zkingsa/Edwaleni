@@ -10,8 +10,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { db } from "@/src/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { Video, Home, Phone, Calendar as CalendarIcon, CheckCircle2, UserCheck, ShieldCheck } from "lucide-react";
 
@@ -27,7 +25,7 @@ const formSchema = z.object({
 });
 
 export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }) {
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
 
@@ -53,7 +51,10 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "appointments"), {
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
         userId: user?.uid || "guest",
         userName: values.fullName,
         contactInfo: values.contactInfo,
@@ -63,8 +64,12 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
         type: values.type,
         notes: values.notes || "",
         status: "pending",
-        createdAt: serverTimestamp(),
+        }),
       });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Failed to submit request.");
+      }
       setSubmittedDate(values.date);
       toast.success("Pastoral session request received! Pastor's office will reach out to confirm.");
       form.reset();
@@ -110,7 +115,7 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
                 </div>
                 <div>
                   <h4 className="font-serif text-lg font-bold text-church-stone-dark">Online Video Consultation</h4>
-                  <p className="text-church-stone-dark/70 text-sm">Join a private Google Meet link from wherever you are.</p>
+                  <p className="text-church-stone-dark/70 text-sm">Join a private video consultation from wherever you are.</p>
                 </div>
               </div>
 
@@ -130,11 +135,11 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
               <div className="p-6 bg-amber-50/80 border border-amber-200/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-center sm:text-left">
                   <p className="text-sm font-semibold text-amber-950">Member Fast-Track</p>
-                  <p className="text-xs text-amber-900/80">Sign in with Google to prefill your member details.</p>
+                  <p className="text-xs text-amber-900/80">Sign in to prefill your member details.</p>
                 </div>
                 <Button 
                   type="button"
-                  onClick={() => (onOpenLogin ? onOpenLogin() : signInWithGoogle())} 
+                  onClick={onOpenLogin}
                   size="sm" 
                   className="bg-church-gold hover:bg-church-gold-hover text-white shadow-xs shrink-0 cursor-pointer"
                 >
@@ -254,7 +259,7 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
                             </FormControl>
                             <SelectContent className="bg-white border-church-stone">
                               <SelectItem value="in-person">In-Person (Sanctuary)</SelectItem>
-                              <SelectItem value="online">Online Video (Google Meet)</SelectItem>
+                              <SelectItem value="online">Online Video</SelectItem>
                               <SelectItem value="phone">Telephone Call</SelectItem>
                             </SelectContent>
                           </Select>
