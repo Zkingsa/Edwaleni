@@ -8,7 +8,12 @@ function escapeHtml(value: string) {
   })[character] || character);
 }
 
-export async function sendStaffInvitation(email: string, name: string, actionLink: string) {
+export async function sendStaffInvitation(
+  email: string,
+  name: string,
+  loginIdentifier: string,
+  actionLink: string
+) {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
   const senderName = process.env.BREVO_SENDER_NAME || 'God The Rock Assembly';
@@ -31,8 +36,10 @@ export async function sendStaffInvitation(email: string, name: string, actionLin
       htmlContent: `<p>Hello ${escapeHtml(name)},</p>
         <p>Your church portal account is ready. Use the secure link below to verify your email and set your password.</p>
         <p><a href="${escapeHtml(actionLink)}">Verify email and set password</a></p>
+        <p>After setup, sign in with this email address: <strong>${escapeHtml(email)}</strong>.</p>
+        <p>You can also use your staff login ID: <strong>${escapeHtml(loginIdentifier)}</strong>.</p>
         <p>If you were not expecting this invitation, you can ignore this message.</p>`,
-      textContent: `Hello ${name},\n\nYour church portal account is ready. Verify your email and set your password here:\n${actionLink}\n\nIf you were not expecting this invitation, ignore this message.`,
+      textContent: `Hello ${name},\n\nYour church portal account is ready. Verify your email and set your password here:\n${actionLink}\n\nAfter setup, sign in with this email address: ${email}.\nYou can also use your staff login ID: ${loginIdentifier}.\n\nIf you were not expecting this invitation, ignore this message.`,
     }),
   });
 

@@ -224,7 +224,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
         return;
       }
 
-      toast.success(`Invitation sent to ${data.staff.email}. They will set their own password.`);
+      toast.success(`Invitation sent to ${data.staff.email}. They can use this email or ${data.staff.loginIdentifier} to sign in after setting their password.`);
 
       setShowAddStaffModal(false);
       setNewStaffFirst("");
@@ -1523,7 +1523,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
               </button>
             </div>
             <p className="text-xs text-stone-500 mb-5">
-              Enter their real email address. Their portal login identifier is generated automatically, and a secure setup link will be sent to that email.
+              Enter the email address they will use to sign in. A staff login ID is also generated, and both sign-in options are included in the verification and password setup email.
             </p>
             <form onSubmit={handleCreateStaff} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">

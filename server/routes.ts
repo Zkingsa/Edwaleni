@@ -651,7 +651,7 @@ apiRouter.post('/staff', requireAuth, requirePermission('users.create'), async (
       throw error;
     }
     try {
-      await sendStaffInvitation(cleanEmail, newStaff.name, inviteData.properties.action_link);
+      await sendStaffInvitation(cleanEmail, newStaff.name, newStaff.loginIdentifier, inviteData.properties.action_link);
     } catch (error) {
       try {
         const rollback = await getDatabase();
