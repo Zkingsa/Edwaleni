@@ -6,6 +6,7 @@ import { useAuth } from "@/src/hooks/useAuth";
 import { Coins, Gift, HandHeart, Heart, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { formatCurrency } from "@/src/lib/formatters";
 
 const donationTypes = [
   { id: "tithe", label: "Tithe", icon: <Coins className="h-5 w-5" />, description: "Faithful return of 10% of our earnings." },
@@ -16,7 +17,7 @@ const donationTypes = [
 
 export function DonationPortal() {
   const { user } = useAuth();
-  const [currency, setCurrency] = useState<"USD" | "ZAR">("USD");
+  const currency = "ZAR" as const;
   const [amount, setAmount] = useState("100");
   const [selectedType, setSelectedType] = useState("tithe");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,9 +35,7 @@ export function DonationPortal() {
     }
   }, []);
 
-  const quickAmounts = currency === "USD" 
-    ? ["25", "50", "100", "250", "500", "1000"]
-    : ["100", "250", "500", "1000", "2500", "5000"];
+  const quickAmounts = ["100", "250", "500", "1000", "2500", "5000"];
 
   const handleDonate = async () => {
     const numericAmount = parseFloat(amount);
@@ -72,7 +71,7 @@ export function DonationPortal() {
     }
   };
 
-  const currencySymbol = currency === "USD" ? "$" : "R";
+  const currencySymbol = "R";
 
   return (
     <section id="give" className="py-24 bg-church-cream-dark/50 relative">
@@ -101,7 +100,7 @@ export function DonationPortal() {
               Thank You for Your Generous Giving!
             </h3>
             <p className="text-emerald-800 text-sm max-w-lg mx-auto">
-              Your contribution {successAmount ? `of ${currencySymbol}${successAmount}` : ""} to God The Rock Assembly (Edwaleni) has been processed. May God richly bless and multiply your seed!
+              Your contribution {successAmount ? `of ${formatCurrency(Number(successAmount), "ZAR")}` : ""} to God The Rock Assembly (Edwaleni) has been processed. May God richly bless and multiply your seed!
             </p>
           </div>
         )}
@@ -148,7 +147,6 @@ export function DonationPortal() {
             <Card className="border border-church-stone shadow-xl rounded-3xl bg-white overflow-hidden">
               <CardContent className="p-8 sm:p-10">
                 <div className="space-y-8">
-                  {/* Currency Toggle */}
                   <div className="flex items-center justify-between pb-4 border-b border-church-stone">
                     <div>
                       <span className="text-xs uppercase tracking-wider font-semibold text-church-stone-dark/70">
@@ -158,25 +156,8 @@ export function DonationPortal() {
                         {donationTypes.find(t => t.id === selectedType)?.label}
                       </p>
                     </div>
-                    <div className="inline-flex p-1 bg-church-cream rounded-xl border border-church-stone text-xs font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => setCurrency("USD")}
-                        className={`px-3 py-1.5 rounded-lg transition-all ${
-                          currency === "USD" ? "bg-church-gold text-white shadow-xs" : "text-church-stone-dark hover:text-church-gold-dark"
-                        }`}
-                      >
-                        USD ($)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrency("ZAR")}
-                        className={`px-3 py-1.5 rounded-lg transition-all ${
-                          currency === "ZAR" ? "bg-church-gold text-white shadow-xs" : "text-church-stone-dark hover:text-church-gold-dark"
-                        }`}
-                      >
-                        ZAR (R)
-                      </button>
+                    <div className="rounded-xl border border-church-stone bg-church-cream px-3 py-2 text-xs font-semibold text-church-stone-dark">
+                      ZAR (South African rand)
                     </div>
                   </div>
 

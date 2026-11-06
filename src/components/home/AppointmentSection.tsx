@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { toast } from "sonner";
 import { Video, Home, Phone, Calendar as CalendarIcon, CheckCircle2, UserCheck, ShieldCheck } from "lucide-react";
+import { formatDate } from "@/src/lib/formatters";
 
 const formSchema = z.object({
   fullName: z.string().min(2, "Please enter your name."),
@@ -34,7 +35,7 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
     defaultValues: {
       fullName: user?.displayName || "",
       contactInfo: user?.email || "",
-      timeSlot: "10:00 AM",
+      timeSlot: "10:00",
       type: "in-person",
       notes: "",
     },
@@ -220,7 +221,7 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
                           <span>Select Consultation Date</span>
                           {field.value && (
                             <span className="text-church-gold-dark font-semibold text-xs">
-                              Selected: {field.value.toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                              Selected: {formatDate(field.value)}
                             </span>
                           )}
                         </FormLabel>
@@ -281,11 +282,11 @@ export function AppointmentSection({ onOpenLogin }: { onOpenLogin?: () => void }
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent className="bg-white border-church-stone">
-                              <SelectItem value="09:00 AM">09:00 AM</SelectItem>
-                              <SelectItem value="10:30 AM">10:30 AM</SelectItem>
-                              <SelectItem value="02:00 PM">02:00 PM</SelectItem>
-                              <SelectItem value="04:00 PM">04:00 PM</SelectItem>
-                              <SelectItem value="06:00 PM">06:00 PM (Evening)</SelectItem>
+                              <SelectItem value="09:00">09:00</SelectItem>
+                              <SelectItem value="10:30">10:30</SelectItem>
+                              <SelectItem value="14:00">14:00</SelectItem>
+                              <SelectItem value="16:00">16:00</SelectItem>
+                              <SelectItem value="18:00">18:00 (Evening)</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

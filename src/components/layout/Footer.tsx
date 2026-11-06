@@ -1,4 +1,4 @@
-import { Church, Mail, Phone, MapPin, Facebook, Instagram, Youtube, Heart, ArrowUp } from "lucide-react";
+import { Church, Mail, MapPin, Facebook, Instagram, Youtube, Heart, ArrowUp } from "lucide-react";
 
 export function Footer() {
   const scrollToTop = () => {
@@ -58,16 +58,16 @@ export function Footer() {
             <ul className="space-y-4 text-white/80 text-sm font-light">
               <li className="space-y-1">
                 <div className="font-semibold text-white">Sunday Worship Services</div>
-                <div className="text-white/70">10:00 AM — Main Morning Celebration</div>
-                <div className="text-white/70">06:00 PM — Evening Revival & Prayer</div>
+                <div className="text-white/70">10:00 — Main Morning Celebration</div>
+                <div className="text-white/70">18:00 — Evening Revival & Prayer</div>
               </li>
               <li className="space-y-1 pt-2">
                 <div className="font-semibold text-white">Wednesday Night Service</div>
-                <div className="text-white/70">07:00 PM — Word Exposition & Intercession</div>
+                <div className="text-white/70">19:00 — Word Exposition & Intercession</div>
               </li>
               <li className="space-y-1 pt-2">
                 <div className="font-semibold text-white">Youth Fellowship</div>
-                <div className="text-white/70">Fridays at 06:30 PM</div>
+                <div className="text-white/70">Fridays at 18:30</div>
               </li>
             </ul>
           </div>
@@ -94,11 +94,7 @@ export function Footer() {
             <ul className="space-y-4 text-white/80 text-sm font-light">
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 mt-0.5 text-amber-400 shrink-0" />
-                <span>Edwaleni Sanctuary Grounds, Edwaleni</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-amber-400 shrink-0" />
-                <span>+268 7600 0000 / (082) 000-0000</span>
+                <span>Edwaleni, South Africa</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-amber-400 shrink-0" />

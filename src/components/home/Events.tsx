@@ -10,7 +10,7 @@ const events = [
   {
     id: "sunday-worship",
     title: "Sunday Celebration & Worship",
-    time: "Sundays at 10:00 AM & 6:00 PM",
+    time: "Sundays at 10:00 & 18:00",
     location: "Main Sanctuary • Edwaleni",
     description: "Joyous worship, anointed preaching, and dedicated children's church ministry.",
     image: "https://images.unsplash.com/photo-1438232992991-995b7058633e?q=80&w=1200&auto=format&fit=crop"
@@ -18,7 +18,7 @@ const events = [
   {
     id: "midweek-prayer",
     title: "Mid-Week Prayer & Word",
-    time: "Wednesdays at 7:00 PM",
+    time: "Wednesdays at 19:00",
     location: "Prayer Chapel & Online",
     description: "Deep dive into scripture and intercessory prayer for families, health, and community.",
     image: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?q=80&w=1200&auto=format&fit=crop"
@@ -26,7 +26,7 @@ const events = [
   {
     id: "community-day",
     title: "Edwaleni Community Day",
-    time: "1st Saturday Monthly at 9:00 AM",
+    time: "1st Saturday Monthly at 09:00",
     location: "Community Center Grounds",
     description: "Hands-on blessing through grocery packs, prayer tents, and youth sports activities.",
     image: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=1200&auto=format&fit=crop"

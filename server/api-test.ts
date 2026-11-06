@@ -42,7 +42,7 @@ async function testApi() {
     body: JSON.stringify({
       fullName: 'Test Church Member',
       email: `member.${Date.now()}@gmail.com`,
-      phone: '+268 7699 9999',
+      phone: '+27 82 123 4567',
       password: 'MemberPassword2026!'
     })
   });
@@ -76,7 +76,7 @@ async function testApi() {
       departmentId: 'dept-worship',
       positionId: 'pos-worship-manager',
       roleId: 'worship_manager',
-      phone: '+268 7611 0000'
+      phone: '+27 82 123 4568'
     })
   });
 

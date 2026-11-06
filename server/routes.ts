@@ -198,7 +198,7 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
  */
 apiRouter.post('/auth/register', async (req: Request, res: Response) => {
   try {
-    const { fullName, email, password, phone } = req.body;
+    const { fullName, email, password, phone, address } = req.body;
 
     if (!fullName || !email || !password) {
       return res.status(400).json({ error: 'Full name, email address, and password are required.' });
@@ -278,7 +278,7 @@ apiRouter.post('/auth/register', async (req: Request, res: Response) => {
       fullName: cleanName,
       email: cleanEmail,
       phone: phone || '',
-      address: 'Edwaleni Community',
+      address: String(address || '').trim(),
       membershipStatus: 'active',
       joinDate: new Date().toISOString().split('T')[0],
       ministryInterests: [],
@@ -546,7 +546,7 @@ apiRouter.get('/roles', async (_req: Request, res: Response) => {
 apiRouter.get('/staff', requireAuth, requirePermission('users.view'), async (_req: AuthRequest, res: Response) => {
   const db = await getDatabase();
   const staffUsers = db.users
-    .filter((u) => (u.departmentAssignments && u.departmentAssignments.length > 0) || u.loginIdentifier.includes('@'))
+    .filter((u) => (u.departmentAssignments?.length ?? 0) > 0)
     .map((u) => ({
       id: u.id,
       name: u.name,
@@ -581,11 +581,18 @@ apiRouter.post('/staff', requireAuth, requirePermission('users.create'), async (
     if (!dept) {
       return res.status(400).json({ error: 'Selected department does not exist.' });
     }
-    if (!db.positions.some((position) => position.id === positionId && position.departmentId === departmentId)) {
+    const position = db.positions.find((entry) => entry.id === positionId && entry.departmentId === departmentId);
+    if (!position) {
       return res.status(400).json({ error: 'Selected position does not belong to the selected department.' });
     }
     if (!db.roles.some((role) => role.id === roleId)) {
       return res.status(400).json({ error: 'Selected application role does not exist.' });
+    }
+    if (roleId === 'system_admin') {
+      return res.status(400).json({ error: 'The System Administrator role is reserved for the single primary administrator account.' });
+    }
+    if (position.defaultRoleId !== roleId) {
+      return res.status(400).json({ error: 'The application role must match the selected department position.' });
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
@@ -706,9 +713,40 @@ apiRouter.put('/staff/:id', requireAuth, requirePermission('users.update'), asyn
       return res.status(400).json({ error: 'Staff status must be active or inactive.' });
     }
 
-    // Safety: prevent deactivating the default admin if it's the only admin
-    if (staff.loginIdentifier === 'admin@system-gtra.org' && status === 'inactive') {
+    const isPrimaryAdmin = staff.id === 'usr-admin-default' ||
+      staff.loginIdentifier.toLowerCase() === 'admin@system-gtra.org';
+    if (isPrimaryAdmin && status === 'inactive') {
       return res.status(400).json({ error: 'The primary system administrator account cannot be deactivated.' });
+    }
+    if (isPrimaryAdmin && regenerateIdentifier) {
+      return res.status(400).json({ error: 'The primary administrator login identifier cannot be changed.' });
+    }
+
+    if (Array.isArray(assignments)) {
+      const assignsSystemAdmin = assignments.some(
+        (assignment) => assignment?.roleId === 'system_admin'
+      );
+      if (assignsSystemAdmin && !isPrimaryAdmin) {
+        return res.status(400).json({ error: 'The System Administrator role is reserved for the single primary administrator account.' });
+      }
+      if (isPrimaryAdmin && !assignsSystemAdmin) {
+        return res.status(400).json({ error: 'The primary administrator must retain the System Administrator role.' });
+      }
+      for (const assignment of assignments) {
+        const department = db.departments.find((entry) => entry.id === assignment?.departmentId);
+        const position = db.positions.find((entry) => entry.id === assignment?.positionId);
+        const role = db.roles.find((entry) => entry.id === assignment?.roleId);
+        if (!department || !position || position.departmentId !== department.id || !role) {
+          return res.status(400).json({ error: 'Each staff role must reference a valid department, position, and role.' });
+        }
+        if (assignment.roleId === 'system_admin') {
+          if (!isPrimaryAdmin) {
+            return res.status(400).json({ error: 'The System Administrator role is reserved for the primary administrator.' });
+          }
+        } else if (position.defaultRoleId !== assignment.roleId) {
+          return res.status(400).json({ error: 'Each application role must match its department position.' });
+        }
+      }
     }
 
     if (status) {
@@ -770,6 +808,48 @@ apiRouter.put('/staff/:id', requireAuth, requirePermission('users.update'), asyn
   }
 });
 
+apiRouter.delete('/staff/:id', requireAuth, requirePermission('users.delete'), async (req: AuthRequest, res: Response) => {
+  try {
+    const db = await getDatabase();
+    const staff = db.users.find((user) => user.id === req.params.id);
+    if (!staff) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+    if (staff.id === req.user!.userId) {
+      return res.status(400).json({ error: 'You cannot delete your own account.' });
+    }
+    if (staff.id === 'usr-admin-default' || staff.loginIdentifier.toLowerCase() === 'admin@system-gtra.org') {
+      return res.status(400).json({ error: 'The primary System Administrator account cannot be deleted.' });
+    }
+
+    const linkedMembers = db.members.filter((member) => member.userId === staff.id);
+    db.users = db.users.filter((user) => user.id !== staff.id);
+    db.members = db.members.filter((member) => member.userId !== staff.id);
+    await saveDatabase(db);
+
+    if (staff.authUserId) {
+      const { error } = await getSupabaseAdmin().auth.admin.deleteUser(staff.authUserId);
+      if (error) {
+        db.users.push(staff);
+        db.members.push(...linkedMembers);
+        await saveDatabase(db);
+        console.error('Could not delete user from Supabase Auth:', error);
+        return res.status(502).json({ error: 'Could not delete the user from the authentication service. The account was restored.' });
+      }
+    }
+
+    await logAudit(req.user!.userId, req.user!.loginIdentifier, 'USER_DELETED', {
+      deletedUserId: staff.id,
+      loginIdentifier: staff.loginIdentifier,
+      linkedMemberRecords: linkedMembers.length,
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('User deletion failed:', error);
+    return res.status(500).json({ error: 'Could not delete this user account.' });
+  }
+});
+
 // -------------------------------------------------------------
 // 4. CHURCH MEMBERS DIRECTORY (PASTOR & ADMIN)
 // -------------------------------------------------------------
@@ -795,7 +875,7 @@ apiRouter.post('/members', requireAuth, requirePermission('members.create'), asy
       fullName: String(fullName).trim(),
       email: String(email || '').trim(),
       phone: String(phone || '').trim(),
-      address: String(address || 'Edwaleni').trim(),
+      address: String(address || '').trim(),
       membershipStatus: membershipStatus || 'active',
       joinDate: new Date().toISOString().split('T')[0],
       ministryInterests: Array.isArray(ministryInterests) ? ministryInterests : [],
@@ -970,7 +1050,7 @@ apiRouter.get('/finance/transactions', requireAuth, requirePermission('finance.t
 
 apiRouter.post('/finance/transactions', requireAuth, requirePermission('finance.transactions.create'), async (req: AuthRequest, res: Response) => {
   try {
-    const { type, category, amount, currency, description, donorName } = req.body;
+    const { type, category, amount, description, donorName } = req.body;
 
     const numAmount = parseFloat(amount);
     if (!type || !category || isNaN(numAmount) || numAmount <= 0) {
@@ -986,7 +1066,7 @@ apiRouter.post('/finance/transactions', requireAuth, requirePermission('finance.
       type,
       category: String(category).trim(),
       amount: numAmount,
-      currency: currency === 'ZAR' ? 'ZAR' : 'USD',
+      currency: 'ZAR',
       description: String(description || '').trim(),
       recordedBy: req.user!.userId,
       recordedByName: req.user!.name,
@@ -1125,7 +1205,7 @@ apiRouter.post('/worship/schedules/:id/attendance', requireAuth, requirePermissi
 // 7. SECURITY AUDIT LOGS
 // -------------------------------------------------------------
 
-apiRouter.get('/audit-logs', requireAuth, requirePermission('users.view'), async (req: AuthRequest, res: Response) => {
+apiRouter.get('/audit-logs', requireAuth, requirePermission('users.delete'), async (req: AuthRequest, res: Response) => {
   const db = await getDatabase();
   // Filter or return logs
   res.json(db.auditLogs.slice(0, 100));

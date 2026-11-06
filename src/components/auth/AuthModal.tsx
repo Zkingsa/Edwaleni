@@ -28,6 +28,7 @@ export function AuthModal({ isOpen, initialTab = "login", onClose, onSuccess }: 
   const [regFullName, setRegFullName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPhone, setRegPhone] = useState("");
+  const [regAddress, setRegAddress] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
 
@@ -105,6 +106,7 @@ export function AuthModal({ isOpen, initialTab = "login", onClose, onSuccess }: 
       fullName: cleanName,
       email: cleanEmail,
       phone: regPhone.trim(),
+      address: regAddress.trim(),
       password: regPassword,
     });
     setLoading(false);
@@ -208,9 +210,6 @@ export function AuthModal({ isOpen, initialTab = "login", onClose, onSuccess }: 
                   autoComplete="username"
                   required
                 />
-                <span className="text-[11px] text-stone-500 mt-1 block">
-                  Staff members use their assigned GTRA login identifier.
-                </span>
               </div>
 
               <div>
@@ -290,21 +289,32 @@ export function AuthModal({ isOpen, initialTab = "login", onClose, onSuccess }: 
                   className="h-11 rounded-xl border-stone-300 focus-visible:ring-church-gold text-sm"
                   required
                 />
-                <span className="text-[11px] text-stone-500 mt-1 block">
-                  Must be your personal email. Privileged staff accounts are managed by church administration.
-                </span>
               </div>
 
               <div>
                 <Label htmlFor="reg-phone" className="text-xs font-semibold text-stone-700 mb-1.5 block">
-                  Phone Number <span className="text-stone-400 font-normal">(Optional)</span>
+                  South African Phone Number <span className="text-stone-400 font-normal">(Optional)</span>
                 </Label>
                 <Input
                   id="reg-phone"
                   type="tel"
-                  placeholder="Enter phone number"
+                  placeholder="+27 82 123 4567"
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
+                  className="h-11 rounded-xl border-stone-300 focus-visible:ring-church-gold text-sm"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="reg-address" className="text-xs font-semibold text-stone-700 mb-1.5 block">
+                  South African Address <span className="text-stone-400 font-normal">(Optional)</span>
+                </Label>
+                <Input
+                  id="reg-address"
+                  autoComplete="street-address"
+                  placeholder="Street address, suburb, city, province, postal code"
+                  value={regAddress}
+                  onChange={(e) => setRegAddress(e.target.value)}
                   className="h-11 rounded-xl border-stone-300 focus-visible:ring-church-gold text-sm"
                 />
               </div>

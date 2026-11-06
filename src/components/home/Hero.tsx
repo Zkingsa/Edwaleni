@@ -56,7 +56,7 @@ export function Hero() {
           <div className="inline-flex flex-wrap items-center justify-center gap-3 sm:gap-6 px-6 py-3 rounded-2xl bg-black/40 backdrop-blur-md border border-white/15 text-white/90 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
-              <span><strong>Sunday Worship:</strong> 10:00 AM & 6:00 PM</span>
+              <span><strong>Sunday Worship:</strong> 10:00 & 18:00</span>
             </div>
             <span className="hidden sm:inline text-white/30">•</span>
             <div className="flex items-center gap-2">

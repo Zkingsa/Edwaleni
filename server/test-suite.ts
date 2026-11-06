@@ -39,10 +39,42 @@ async function runTests() {
   const reloadedAdmin = db.users.find(u => u.loginIdentifier === 'admin@system-gtra.org');
   assert(reloadedAdmin?.passwordHash === customPasswordHash, 'Re-running seed does NOT overwrite changed admin password');
   assert(reloadedAdmin?.mustChangePassword === false, 'Re-running seed preserves mustChangePassword = false');
+  assert(
+    !db.users.some((user) => [
+      'usr-pastor-khaya',
+      'usr-worship-manager',
+      'usr-treasurer',
+      'usr-sample-member',
+      'usr-mbr-1793190575426',
+      'usr-stf-1793190575579',
+    ].includes(user.id)) &&
+      !db.members.some((member) => ['mbr-1', 'mbr-2', 'mbr-3'].includes(member.id)) &&
+      !db.worshipSchedules.some((schedule) => ['ws-1', 'ws-2'].includes(schedule.id)) &&
+      !db.transactions.some((transaction) => ['tx-1', 'tx-2', 'tx-3'].includes(transaction.id)),
+    'Seeding does not retain demo users or administrative records'
+  );
 
   // Reset back to initial state for testing
   reloadedAdmin!.passwordHash = await hashPassword('AdminGTRA');
   reloadedAdmin!.mustChangePassword = true;
+
+  const secondAdmin: User = {
+    ...reloadedAdmin!,
+    id: 'usr-second-admin-test',
+    email: 'second-admin@example.org',
+    loginIdentifier: 'second-admin@example.org',
+    departmentAssignments: [{
+      departmentId: 'dept-admin',
+      positionId: 'pos-church-admin',
+      roleId: 'system_admin',
+    }],
+  };
+  db.users.push(secondAdmin);
+  await seedInitialData(db);
+  assert(
+    db.users.filter((user) => user.departmentAssignments.some((assignment) => assignment.roleId === 'system_admin')).length === 1,
+    'Only the primary administrator can hold the System Administrator role'
+  );
 
   // TEST 3: Staff Login Email Convention & Duplicate Handling
   console.log('\n--- Test Suite 3: Staff Email Convention & Collision Handling ---');

@@ -33,7 +33,7 @@ interface AuthContextType {
   isSystemAdmin: boolean;
   hasPermission: (permission: string) => boolean;
   login: (loginIdentifier: string, password: string) => Promise<{ success: boolean; mustChangePassword?: boolean; error?: string }>;
-  register: (data: { fullName: string; email: string; password: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { fullName: string; email: string; password: string; phone?: string; address?: string }) => Promise<{ success: boolean; error?: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -184,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (data: { fullName: string; email: string; password: string; phone?: string }) => {
+  const register = async (data: { fullName: string; email: string; password: string; phone?: string; address?: string }) => {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",

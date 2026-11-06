@@ -11,7 +11,7 @@ const ministries = [
     title: "Youth & Young Adults",
     icon: <Users className="h-6 w-6" />,
     description: "Empowering the next generation to lead with boldness, integrity, and passion for Christ.",
-    schedule: "Fridays at 6:30 PM",
+    schedule: "Fridays at 18:30",
     image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1200&auto=format&fit=crop"
   },
   {
@@ -19,7 +19,7 @@ const ministries = [
     title: "Worship & Praise Team",
     icon: <Music className="h-6 w-6" />,
     description: "Cultivating an atmosphere of reverent and joyful worship that ushers people into God's presence.",
-    schedule: "Thursdays at 7:00 PM",
+    schedule: "Thursdays at 19:00",
     image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1200&auto=format&fit=crop"
   },
   {
@@ -27,7 +27,7 @@ const ministries = [
     title: "Biblical Life Studies",
     icon: <BookOpen className="h-6 w-6" />,
     description: "Rooting our faith in Scripture through thoughtful study, question-and-answer, and fellowship.",
-    schedule: "Wednesdays at 7:00 PM",
+    schedule: "Wednesdays at 19:00",
     image: "https://images.unsplash.com/photo-1504052434139-015802ef6070?q=80&w=1200&auto=format&fit=crop"
   },
   {

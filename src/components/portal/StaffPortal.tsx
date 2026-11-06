@@ -10,10 +10,21 @@ import {
   FileText, ShieldCheck, UserCheck, RefreshCw, Layers, Lock, ChevronRight, Upload, Image
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatCurrency, formatDate, formatDateTime, type CurrencyCode } from "@/src/lib/formatters";
 
 interface StaffPortalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function formatTransactionTotals(
+  transactions: Array<{ amount: number; currency: CurrencyCode }>
+): string {
+  const totals = new Map<CurrencyCode, number>();
+  for (const transaction of transactions) {
+    totals.set(transaction.currency, (totals.get(transaction.currency) || 0) + transaction.amount);
+  }
+  return Array.from(totals, ([currency, amount]) => formatCurrency(amount, currency)).join(" · ") || formatCurrency(0);
 }
 
 export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
@@ -63,7 +74,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   const [newTxType, setNewTxType] = useState<"tithe" | "offering" | "project" | "expense">("tithe");
   const [newTxCategory, setNewTxCategory] = useState("");
   const [newTxAmount, setNewTxAmount] = useState("");
-  const [newTxCurrency, setNewTxCurrency] = useState<"USD" | "ZAR">("USD");
   const [newTxDesc, setNewTxDesc] = useState("");
   const [newTxDonor, setNewTxDonor] = useState("");
 
@@ -72,8 +82,8 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   const [newWsDate, setNewWsDate] = useState("");
   const [newWsTime, setNewWsTime] = useState("18:30 - 20:30");
   const [newWsVenue, setNewWsVenue] = useState("Main Sanctuary • Edwaleni");
-  const [newWsSongs, setNewWsSongs] = useState("Way Maker (G)\nThe Rock of Ages (D)");
-  const [newWsRoster, setNewWsRoster] = useState("Musa Dlamini (Worship Leader)\nBongani Shongwe (Keys)");
+  const [newWsSongs, setNewWsSongs] = useState("");
+  const [newWsRoster, setNewWsRoster] = useState("");
   const [newWsNotes, setNewWsNotes] = useState("");
 
   // Default initial tab based on permissions
@@ -113,9 +123,12 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
       if (hasPermission("users.view") || isSystemAdmin) {
         const staffRes = await fetch("/api/staff", { headers: { Authorization: `Bearer ${token}` } });
         if (staffRes.ok) setStaffList(await staffRes.json());
+        if (isSystemAdmin) {
 
         const auditRes = await fetch("/api/audit-logs", { headers: { Authorization: `Bearer ${token}` } });
         if (auditRes.ok) setAuditLogs(await auditRes.json());
+
+        }
       }
 
       // 3. Members directory if authorized
@@ -285,6 +298,25 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
     }
   };
 
+  const handleDeleteStaff = async (staffId: string, staffName: string) => {
+    if (!window.confirm(`Permanently delete ${staffName}'s account? This cannot be undone.`)) return;
+    try {
+      const response = await fetch(`/api/staff/${staffId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || "Failed to delete user.");
+        return;
+      }
+      setStaffList((current) => current.filter((staff) => staff.id !== staffId));
+      toast.success(`${staffName}'s account was deleted.`);
+    } catch {
+      toast.error("Network error deleting user.");
+    }
+  };
+
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDeptName || !newDeptCode || !newDeptDomain) {
@@ -334,7 +366,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
           type: newTxType,
           category: newTxCategory,
           amount: amountNum,
-          currency: newTxCurrency,
+          currency: "ZAR",
           description: newTxDesc,
           donorName: newTxDonor,
         }),
@@ -604,9 +636,11 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                     <Button
                       size="sm"
                       onClick={() => {
-                        if (departments.length > 0) setNewStaffDept(departments[0].id);
-                        if (positions.length > 0) setNewStaffPos(positions[0].id);
-                        if (roles.length > 0) setNewStaffRole(roles[0].id);
+                        const departmentId = departments[0]?.id || "";
+                        const position = positions.find((entry) => entry.departmentId === departmentId);
+                        setNewStaffDept(departmentId);
+                        setNewStaffPos(position?.id || "");
+                        setNewStaffRole(position?.defaultRoleId || "");
                         setShowAddStaffModal(true);
                       }}
                       className="bg-church-gold hover:bg-church-gold-hover text-white shadow-xs text-xs"
@@ -690,23 +724,34 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                               </span>
                             </td>
                             <td className="p-3.5 pr-5 text-right">
-                              {stf.status === "pending" ? (
-                                <span className="text-[11px] text-amber-700 italic">Complete emailed setup</span>
-                              ) : stf.loginIdentifier !== "admin@system-gtra.org" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleStaffStatus(stf.id, stf.status)}
-                                  className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
-                                    stf.status === "active"
-                                      ? "border-red-200 text-red-600 hover:bg-red-50"
-                                      : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                                  }`}
-                                >
-                                  {stf.status === "active" ? "Deactivate" : "Activate"}
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-stone-400 italic">Primary admin</span>
-                              )}
+                              <div className="flex items-center justify-end gap-2">
+                                {stf.status === "pending" ? (
+                                  <span className="text-[11px] text-amber-700 italic">Complete emailed setup</span>
+                                ) : stf.loginIdentifier !== "admin@system-gtra.org" && hasPermission("users.update") ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleStaffStatus(stf.id, stf.status)}
+                                    className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                                      stf.status === "active"
+                                        ? "border-red-200 text-red-600 hover:bg-red-50"
+                                        : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                                    }`}
+                                  >
+                                    {stf.status === "active" ? "Deactivate" : "Activate"}
+                                  </button>
+                                ) : stf.loginIdentifier === "admin@system-gtra.org" ? (
+                                  <span className="text-[11px] text-stone-400 italic">Primary admin</span>
+                                ) : null}
+                                {isSystemAdmin && stf.loginIdentifier !== "admin@system-gtra.org" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteStaff(stf.id, stf.name)}
+                                    className="text-xs px-2.5 py-1 rounded-lg border border-red-300 text-red-700 hover:bg-red-50"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -745,6 +790,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
               </div>
 
               {/* Audit Logs Table */}
+              {isSystemAdmin && (
               <div className="bg-white rounded-2xl border border-church-stone shadow-xs overflow-hidden">
                 <div className="p-4 border-b border-church-stone bg-church-cream/40 flex items-center justify-between">
                   <h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
@@ -767,7 +813,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                       {auditLogs.map((log) => (
                         <tr key={log.id} className="hover:bg-stone-50">
                           <td className="p-2.5 pl-4 text-stone-500 whitespace-nowrap">
-                            {new Date(log.timestamp).toLocaleString()}
+                            {formatDateTime(log.timestamp)}
                           </td>
                           <td className="p-2.5 font-mono text-amber-900 font-medium">
                             {log.userIdentifier}
@@ -784,6 +830,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                   </table>
                 </div>
               </div>
+              )}
 
             </div>
           )}
@@ -832,7 +879,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                             <div>{mbr.phone}</div>
                             <div className="text-[11px] text-stone-400">{mbr.email}</div>
                           </td>
-                          <td className="p-3.5 text-stone-600">{mbr.address}</td>
+                          <td className="p-3.5 text-stone-600">{mbr.address || "Not provided"}</td>
                           <td className="p-3.5">
                             <span className="px-2 py-0.5 rounded-full text-[11px] bg-emerald-100 text-emerald-800 font-semibold">
                               {mbr.membershipStatus}
@@ -873,7 +920,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                           {appointment.notes && <p className="mt-1 text-sm text-stone-600">{appointment.notes}</p>}
                         </div>
                         <div className="text-left text-sm sm:text-right">
-                          <p className="font-medium text-stone-800">{new Date(appointment.dateTime).toLocaleDateString()}</p>
+                          <p className="font-medium text-stone-800">{formatDate(appointment.dateTime)}</p>
                           <p className="text-xs text-stone-500">{appointment.timeSlot} · {appointment.status}</p>
                         </div>
                       </div>
@@ -897,7 +944,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                           <p className="font-semibold text-stone-900">{request.eventTitle}</p>
                           <p className="text-xs text-stone-500">{request.requesterName} · {request.requesterEmail}</p>
                         </div>
-                        <p className="text-xs text-stone-500">{new Date(request.createdAt).toLocaleString()} · {request.status}</p>
+                        <p className="text-xs text-stone-500">{formatDateTime(request.createdAt)} · {request.status}</p>
                       </div>
                     ))}
                     {eventRequests.length === 0 && <p className="p-4 text-sm text-stone-500">No event requests yet.</p>}
@@ -947,14 +994,14 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                 <Card className="p-4 bg-white border border-church-stone rounded-2xl shadow-xs">
                   <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Total Income Recorded</span>
                   <div className="font-serif text-3xl font-bold text-emerald-700 mt-1">
-                    ${transactions.filter((t) => t.type !== "expense").reduce((acc, t) => acc + t.amount, 0).toLocaleString()}
+                    {formatTransactionTotals(transactions.filter((transaction) => transaction.type !== "expense"))}
                   </div>
                   <span className="text-[11px] text-stone-400">Tithes, offerings & building gifts</span>
                 </Card>
                 <Card className="p-4 bg-white border border-church-stone rounded-2xl shadow-xs">
                   <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Total Expenditures</span>
                   <div className="font-serif text-3xl font-bold text-amber-700 mt-1">
-                    ${transactions.filter((t) => t.type === "expense").reduce((acc, t) => acc + t.amount, 0).toLocaleString()}
+                    {formatTransactionTotals(transactions.filter((transaction) => transaction.type === "expense"))}
                   </div>
                   <span className="text-[11px] text-stone-400">Sanctuary utilities, missions, fuel</span>
                 </Card>
@@ -997,7 +1044,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                         <tr key={tx.id} className="hover:bg-amber-50/20">
                           <td className="p-3.5 pl-5">
                             <div className="font-mono text-xs font-semibold text-stone-800">{tx.receiptNumber}</div>
-                            <div className="text-[11px] text-stone-400">{new Date(tx.date).toLocaleDateString()}</div>
+                            <div className="text-[11px] text-stone-400">{formatDate(tx.date)}</div>
                           </td>
                           <td className="p-3.5 font-medium text-stone-900">{tx.category}</td>
                           <td className="p-3.5 capitalize">
@@ -1008,7 +1055,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                             </span>
                           </td>
                           <td className="p-3.5 font-bold text-stone-900">
-                            {tx.currency} {tx.amount.toLocaleString()}
+                            {formatCurrency(tx.amount, tx.currency)}
                           </td>
                           <td className="p-3.5 text-stone-600">{tx.recordedByName}</td>
                           <td className="p-3.5">
@@ -1303,7 +1350,13 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                 <Label className="text-xs">Assigned Department</Label>
                 <select
                   value={newStaffDept}
-                  onChange={(e) => setNewStaffDept(e.target.value)}
+                  onChange={(e) => {
+                    const departmentId = e.target.value;
+                    const firstPosition = positions.find((position) => position.departmentId === departmentId);
+                    setNewStaffDept(departmentId);
+                    setNewStaffPos(firstPosition?.id || "");
+                    setNewStaffRole(firstPosition?.defaultRoleId || "");
+                  }}
                   className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
                   required
                 >
@@ -1319,7 +1372,11 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                 <Label className="text-xs">Position Title</Label>
                 <select
                   value={newStaffPos}
-                  onChange={(e) => setNewStaffPos(e.target.value)}
+                  onChange={(e) => {
+                    const position = positions.find((entry) => entry.id === e.target.value);
+                    setNewStaffPos(e.target.value);
+                    setNewStaffRole(position?.defaultRoleId || "");
+                  }}
                   className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
                   required
                 >
@@ -1341,7 +1398,14 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                   className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
                   required
                 >
-                  {roles.map((r) => (
+                  {roles.filter((role) =>
+                    role.id !== "system_admin" &&
+                    positions.some((position) =>
+                      position.id === newStaffPos &&
+                      position.departmentId === newStaffDept &&
+                      position.defaultRoleId === role.id
+                    )
+                  ).map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name}
                     </option>
@@ -1352,7 +1416,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
               <div>
                 <Label className="text-xs">Contact Phone</Label>
                 <Input
-                  placeholder="+268 7600 0000"
+                  placeholder="+27 82 123 4567"
                   value={newStaffPhone}
                   onChange={(e) => setNewStaffPhone(e.target.value)}
                 />
@@ -1455,14 +1519,9 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                 </div>
                 <div>
                   <Label className="text-xs">Currency</Label>
-                  <select
-                    value={newTxCurrency}
-                    onChange={(e) => setNewTxCurrency(e.target.value as any)}
-                    className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
-                  >
-                    <option value="USD">USD ($)</option>
-                    <option value="ZAR">ZAR (R)</option>
-                  </select>
+                  <div className="flex h-10 items-center rounded-xl border border-stone-300 bg-stone-50 px-3 text-sm">
+                    ZAR (South African rand)
+                  </div>
                 </div>
               </div>
 

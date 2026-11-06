@@ -57,13 +57,17 @@ async function startServer() {
   // Secure Donation Checkout
   app.post("/api/donations/create-checkout-session", async (req, res) => {
     const { amount, type, userId } = req.body;
-    
+    const donationAmount = Number(amount);
+    if (!Number.isFinite(donationAmount) || donationAmount <= 0) {
+      return res.status(400).json({ error: "Enter a valid donation amount in South African rand." });
+    }
+
     const client = getStripe();
     if (!client) {
       // For demo purposes, we mock success if no key is found
       const baseUrl = process.env.APP_URL || `http://localhost:${PORT}`;
       return res.json({ 
-        url: `${baseUrl}?donation_success=true&amount=${amount}&type=${encodeURIComponent(type || "tithe")}`,
+        url: `${baseUrl}?donation_success=true&amount=${donationAmount}&currency=ZAR&type=${encodeURIComponent(type || "tithe")}`,
         mock: true 
       });
     }
@@ -74,11 +78,11 @@ async function startServer() {
         line_items: [
           {
             price_data: {
-              currency: "usd",
+              currency: "zar",
               product_data: {
                 name: `God The Rock Assembly - ${type}`,
               },
-              unit_amount: Math.round(Number(amount) * 100),
+              unit_amount: Math.round(donationAmount * 100),
             },
             quantity: 1,
           },

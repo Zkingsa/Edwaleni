@@ -6,7 +6,7 @@ export const INITIAL_ROLES: Role[] = [
     name: 'System Administrator',
     description: 'Full administrative access across staff, departments, technical settings, and audit logs.',
     permissions: [
-      'users.view', 'users.create', 'users.update', 'users.deactivate',
+      'users.view', 'users.create', 'users.update', 'users.deactivate', 'users.delete',
       'departments.manage',
       'members.view', 'members.create', 'members.update', 'members.deactivate',
       'finance.transactions.view', 'finance.transactions.create', 'finance.transactions.approve', 'finance.reports.view', 'finance.reconciliation.manage',
@@ -46,10 +46,14 @@ export const INITIAL_ROLES: Role[] = [
   {
     id: 'church_admin',
     name: 'Church Administrator',
-    description: 'Manages member registrations, church records, scheduling, and administrative reports.',
+    description: 'Creates staff accounts and manages member care, finance, worship, and media review.',
     permissions: [
-      'users.view',
+      'users.view', 'users.create', 'users.update',
       'members.view', 'members.create', 'members.update',
+      'pastoral_care.view',
+      'finance.transactions.view', 'finance.transactions.create', 'finance.transactions.approve', 'finance.reports.view', 'finance.reconciliation.manage',
+      'worship.schedule.view', 'worship.schedule.manage', 'worship.members.manage', 'worship.attendance.manage',
+      'media.assets.view',
       'announcements.create', 'announcements.approve',
       'events.manage',
       'reports.view'
