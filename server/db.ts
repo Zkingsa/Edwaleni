@@ -93,6 +93,8 @@ export async function getDatabase(): Promise<DatabaseSchema> {
       state.appointments ||= [];
       state.eventRequests ||= [];
       state.mediaAssets ||= [];
+      state.siteErrors ||= [];
+      state.codeChangeRequests ||= [];
       await seedInitialData(state);
       return state;
     }
@@ -116,6 +118,8 @@ export async function getDatabase(): Promise<DatabaseSchema> {
       if (!cache.eventRequests) cache.eventRequests = [];
       if (!cache.mediaAssets) cache.mediaAssets = [];
       if (!cache.auditLogs) cache.auditLogs = [];
+      if (!cache.siteErrors) cache.siteErrors = [];
+      if (!cache.codeChangeRequests) cache.codeChangeRequests = [];
       cache.revision = 0;
       if (removeDemoData(cache)) {
         await saveDatabase(cache);
@@ -141,6 +145,8 @@ export async function getDatabase(): Promise<DatabaseSchema> {
     eventRequests: [],
     mediaAssets: [],
     auditLogs: [],
+    siteErrors: [],
+    codeChangeRequests: [],
   };
 
   await saveDatabase(cache);
@@ -232,7 +238,7 @@ export async function seedInitialData(db: DatabaseSchema): Promise<void> {
     changed = true;
   }
 
-  for (const roleId of ['system_admin', 'media_manager']) {
+  for (const roleId of ['media_manager']) {
     const role = db.roles.find((entry) => entry.id === roleId);
     if (role && !role.permissions.includes('media.assets.manage')) {
       role.permissions.push('media.assets.view', 'media.assets.manage');
@@ -249,6 +255,13 @@ export async function seedInitialData(db: DatabaseSchema): Promise<void> {
   if (configuredChurchAdmin && churchAdmin &&
       JSON.stringify(churchAdmin.permissions) !== JSON.stringify(configuredChurchAdmin.permissions)) {
     churchAdmin.permissions = [...configuredChurchAdmin.permissions];
+    changed = true;
+  }
+  const configuredSystemAdmin = INITIAL_ROLES.find((entry) => entry.id === 'system_admin');
+  const systemAdminRole = db.roles.find((entry) => entry.id === 'system_admin');
+  if (configuredSystemAdmin && systemAdminRole &&
+      JSON.stringify(systemAdminRole.permissions) !== JSON.stringify(configuredSystemAdmin.permissions)) {
+    systemAdminRole.permissions = [...configuredSystemAdmin.permissions];
     changed = true;
   }
 

@@ -4,18 +4,10 @@ export const INITIAL_ROLES: Role[] = [
   {
     id: 'system_admin',
     name: 'System Administrator',
-    description: 'Full administrative access across staff, departments, technical settings, and audit logs.',
+    description: 'Manages system accounts, departments, technical settings, and audit logs.',
     permissions: [
       'users.view', 'users.create', 'users.update', 'users.deactivate', 'users.delete',
       'departments.manage',
-      'members.view', 'members.create', 'members.update', 'members.deactivate',
-      'finance.transactions.view', 'finance.transactions.create', 'finance.transactions.approve', 'finance.reports.view', 'finance.reconciliation.manage',
-      'worship.schedule.view', 'worship.schedule.manage', 'worship.members.manage', 'worship.attendance.manage',
-      'media.assets.view', 'media.assets.manage',
-      'announcements.create', 'announcements.approve',
-      'events.manage',
-      'reports.view',
-      'pastoral_care.view'
     ]
   },
   {

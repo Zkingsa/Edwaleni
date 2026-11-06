@@ -275,8 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermission = (permission: string) => {
     if (!user) return false;
-    const isSystemAdmin = permissions.includes("users.deactivate") && permissions.includes("departments.manage");
-    return isSystemAdmin || permissions.includes(permission);
+    return permissions.includes(permission);
   };
 
   const isStaff = Boolean(

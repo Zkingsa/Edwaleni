@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getDatabase, saveDatabase, logAudit } from './db';
 import { comparePassword, generateStaffIdentifier, resolveUserPermissions } from './auth';
-import { User, DepartmentAssignment, FinancialTransaction, WorshipSchedule, Member } from './types';
+import { User, DepartmentAssignment, FinancialTransaction, WorshipSchedule, Member, SiteErrorReport, CodeChangeRequest } from './types';
 import { getSupabaseAdmin, getSupabasePublic } from './supabase';
 import { sendStaffInvitation } from './brevo';
 import { createMediaDownloadUrl, createMediaUpload, verifyMediaUpload } from './r2';
@@ -78,8 +78,7 @@ export function requirePermission(permission: string) {
       return res.status(403).json({ error: 'Verify your email and set your password before using the portal.' });
     }
 
-    const isSystemAdmin = req.user.permissions.includes('users.deactivate') && req.user.permissions.includes('departments.manage');
-    const hasPerm = req.user.permissions.includes(permission) || isSystemAdmin;
+    const hasPerm = req.user.permissions.includes(permission);
 
     if (!hasPerm) {
       return res.status(403).json({
@@ -1209,4 +1208,142 @@ apiRouter.get('/audit-logs', requireAuth, requirePermission('users.delete'), asy
   const db = await getDatabase();
   // Filter or return logs
   res.json(db.auditLogs.slice(0, 100));
+});
+
+apiRouter.post('/site-errors', requireAuth, async (req: AuthRequest, res: Response) => {
+  const { message, source, stack } = req.body;
+  if (typeof message !== 'string' || !message.trim() || typeof source !== 'string' || !source.trim()) {
+    return res.status(400).json({ error: 'Error message and source are required.' });
+  }
+  if (req.user!.status !== 'active') {
+    return res.status(403).json({ error: 'Complete account setup before reporting a site error.' });
+  }
+
+  try {
+    const db = await getDatabase();
+    const normalizedMessage = message.trim().slice(0, 1000);
+    const normalizedSource = source.trim().slice(0, 300);
+    const recentDuplicate = db.siteErrors.find((entry) =>
+      entry.message === normalizedMessage &&
+      entry.source === normalizedSource &&
+      Date.now() - Date.parse(entry.createdAt) < 60_000
+    );
+    if (recentDuplicate) return res.status(200).json({ success: true, duplicate: true });
+
+    const now = new Date().toISOString();
+    const report: SiteErrorReport = {
+      id: `site-error-${randomBytes(10).toString('hex')}`,
+      message: normalizedMessage,
+      source: normalizedSource,
+      stack: typeof stack === 'string' ? stack.slice(0, 4000) : undefined,
+      reporterId: req.user!.userId,
+      reporterName: req.user!.name,
+      status: 'open',
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.siteErrors.unshift(report);
+    db.siteErrors = db.siteErrors.slice(0, 500);
+    await saveDatabase(db);
+    return res.status(201).json({ success: true });
+  } catch (error) {
+    console.error('Site error report could not be saved:', error);
+    return res.status(500).json({ error: 'Could not save the site error report.' });
+  }
+});
+
+apiRouter.get('/site-errors', requireAuth, requirePermission('users.delete'), async (_req: AuthRequest, res: Response) => {
+  const db = await getDatabase();
+  return res.json(db.siteErrors);
+});
+
+apiRouter.patch('/site-errors/:id', requireAuth, requirePermission('users.delete'), async (req: AuthRequest, res: Response) => {
+  const status = req.body.status;
+  if (!['open', 'acknowledged', 'resolved'].includes(status)) {
+    return res.status(400).json({ error: 'Status must be open, acknowledged, or resolved.' });
+  }
+  try {
+    const db = await getDatabase();
+    const report = db.siteErrors.find((entry) => entry.id === req.params.id);
+    if (!report) return res.status(404).json({ error: 'Site error report not found.' });
+    report.status = status;
+    report.updatedAt = new Date().toISOString();
+    await saveDatabase(db);
+    await logAudit(req.user!.userId, req.user!.loginIdentifier, 'SITE_ERROR_STATUS_UPDATED', {
+      reportId: report.id,
+      status,
+    });
+    return res.json(report);
+  } catch (error) {
+    console.error('Site error status update failed:', error);
+    return res.status(500).json({ error: 'Could not update the site error report.' });
+  }
+});
+
+apiRouter.get('/code-change-requests', requireAuth, requirePermission('users.delete'), async (_req: AuthRequest, res: Response) => {
+  const db = await getDatabase();
+  return res.json(db.codeChangeRequests);
+});
+
+apiRouter.post('/code-change-requests', requireAuth, requirePermission('users.delete'), async (req: AuthRequest, res: Response) => {
+  const { title, description, priority } = req.body;
+  if (typeof title !== 'string' || !title.trim() || title.trim().length > 150) {
+    return res.status(400).json({ error: 'A title of 150 characters or fewer is required.' });
+  }
+  if (typeof description !== 'string' || !description.trim() || description.trim().length > 3000) {
+    return res.status(400).json({ error: 'A description of 3,000 characters or fewer is required.' });
+  }
+  if (!['low', 'normal', 'high'].includes(priority)) {
+    return res.status(400).json({ error: 'Priority must be low, normal, or high.' });
+  }
+  try {
+    const db = await getDatabase();
+    const now = new Date().toISOString();
+    const request: CodeChangeRequest = {
+      id: `code-request-${randomBytes(10).toString('hex')}`,
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      status: 'requested',
+      createdBy: req.user!.userId,
+      createdByName: req.user!.name,
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.codeChangeRequests.unshift(request);
+    db.codeChangeRequests = db.codeChangeRequests.slice(0, 500);
+    await saveDatabase(db);
+    await logAudit(req.user!.userId, req.user!.loginIdentifier, 'CODE_CHANGE_REQUEST_CREATED', {
+      requestId: request.id,
+      title: request.title,
+      priority: request.priority,
+    });
+    return res.status(201).json(request);
+  } catch (error) {
+    console.error('Code change request creation failed:', error);
+    return res.status(500).json({ error: 'Could not create the code change request.' });
+  }
+});
+
+apiRouter.patch('/code-change-requests/:id', requireAuth, requirePermission('users.delete'), async (req: AuthRequest, res: Response) => {
+  const status = req.body.status;
+  if (!['requested', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid code change request status.' });
+  }
+  try {
+    const db = await getDatabase();
+    const request = db.codeChangeRequests.find((entry) => entry.id === req.params.id);
+    if (!request) return res.status(404).json({ error: 'Code change request not found.' });
+    request.status = status;
+    request.updatedAt = new Date().toISOString();
+    await saveDatabase(db);
+    await logAudit(req.user!.userId, req.user!.loginIdentifier, 'CODE_CHANGE_REQUEST_UPDATED', {
+      requestId: request.id,
+      status,
+    });
+    return res.json(request);
+  } catch (error) {
+    console.error('Code change request status update failed:', error);
+    return res.status(500).json({ error: 'Could not update the code change request.' });
+  }
 });

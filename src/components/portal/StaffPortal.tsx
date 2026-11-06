@@ -31,7 +31,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   const { user, token, permissions, isSystemAdmin, hasPermission, isStaff } = useAuth();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<"admin" | "pastor" | "finance" | "worship" | "media" | "profile">("admin");
+  const [activeTab, setActiveTab] = useState<"admin" | "system" | "pastor" | "finance" | "worship" | "media" | "profile">("admin");
   const [loading, setLoading] = useState(false);
 
   // Data states
@@ -48,6 +48,11 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaUploading, setMediaUploading] = useState(false);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [siteErrors, setSiteErrors] = useState<any[]>([]);
+  const [codeChangeRequests, setCodeChangeRequests] = useState<any[]>([]);
+  const [newCodeRequestTitle, setNewCodeRequestTitle] = useState("");
+  const [newCodeRequestDescription, setNewCodeRequestDescription] = useState("");
+  const [newCodeRequestPriority, setNewCodeRequestPriority] = useState<"low" | "normal" | "high">("normal");
 
   // Modals & sub-forms inside portal
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -61,7 +66,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
   const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffDept, setNewStaffDept] = useState("");
   const [newStaffPos, setNewStaffPos] = useState("");
-  const [newStaffRole, setNewStaffRole] = useState("");
   const [newStaffPhone, setNewStaffPhone] = useState("");
 
   // New dept form state
@@ -88,7 +92,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
 
   // Default initial tab based on permissions
   useEffect(() => {
-    if (isSystemAdmin || hasPermission("users.view")) {
+    if (hasPermission("users.view")) {
       setActiveTab("admin");
     } else if (hasPermission("members.view") || hasPermission("pastoral_care.view")) {
       setActiveTab("pastor");
@@ -101,7 +105,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
     } else {
       setActiveTab("profile");
     }
-  }, [isSystemAdmin, permissions]);
+  }, [permissions]);
 
   // Load portal data
   const loadData = async () => {
@@ -120,7 +124,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
       if (rolesRes.ok) setRoles(await rolesRes.json());
 
       // 2. Staff & Audit logs if authorized
-      if (hasPermission("users.view") || isSystemAdmin) {
+      if (hasPermission("users.view")) {
         const staffRes = await fetch("/api/staff", { headers: { Authorization: `Bearer ${token}` } });
         if (staffRes.ok) setStaffList(await staffRes.json());
         if (isSystemAdmin) {
@@ -131,35 +135,45 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
         }
       }
 
+      if (isSystemAdmin) {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [errorsResponse, requestsResponse] = await Promise.all([
+          fetch("/api/site-errors", { headers }),
+          fetch("/api/code-change-requests", { headers }),
+        ]);
+        if (errorsResponse.ok) setSiteErrors(await errorsResponse.json());
+        if (requestsResponse.ok) setCodeChangeRequests(await requestsResponse.json());
+      }
+
       // 3. Members directory if authorized
-      if (hasPermission("members.view") || isSystemAdmin) {
+      if (hasPermission("members.view")) {
         const mbrRes = await fetch("/api/members", { headers: { Authorization: `Bearer ${token}` } });
         if (mbrRes.ok) setMembers(await mbrRes.json());
       }
 
-      if (hasPermission("pastoral_care.view") || isSystemAdmin) {
+      if (hasPermission("pastoral_care.view")) {
         const appointmentRes = await fetch("/api/appointments", { headers: { Authorization: `Bearer ${token}` } });
         if (appointmentRes.ok) setAppointments(await appointmentRes.json());
       }
 
-      if (hasPermission("events.manage") || isSystemAdmin) {
+      if (hasPermission("events.manage")) {
         const eventRequestRes = await fetch("/api/event-requests", { headers: { Authorization: `Bearer ${token}` } });
         if (eventRequestRes.ok) setEventRequests(await eventRequestRes.json());
       }
 
       // 4. Financial transactions if authorized
-      if (hasPermission("finance.transactions.view") || isSystemAdmin) {
+      if (hasPermission("finance.transactions.view")) {
         const txRes = await fetch("/api/finance/transactions", { headers: { Authorization: `Bearer ${token}` } });
         if (txRes.ok) setTransactions(await txRes.json());
       }
 
       // 5. Worship schedules if authorized
-      if (hasPermission("worship.schedule.view") || isSystemAdmin) {
+      if (hasPermission("worship.schedule.view")) {
         const wsRes = await fetch("/api/worship/schedules", { headers: { Authorization: `Bearer ${token}` } });
         if (wsRes.ok) setWorshipSchedules(await wsRes.json());
       }
 
-      if (hasPermission("media.assets.view") || isSystemAdmin) {
+      if (hasPermission("media.assets.view")) {
         const mediaRes = await fetch("/api/media/assets", { headers: { Authorization: `Bearer ${token}` } });
         if (mediaRes.ok) setMediaAssets(await mediaRes.json());
       }
@@ -174,14 +188,17 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, token]);
+  }, [isOpen, token, permissions, isSystemAdmin]);
 
   if (!isOpen) return null;
 
   // Handlers
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStaffFirst || !newStaffLast || !newStaffEmail || !newStaffDept || !newStaffPos || !newStaffRole) {
+    const selectedPosition = positions.find(
+      (position) => position.id === newStaffPos && position.departmentId === newStaffDept
+    );
+    if (!newStaffFirst || !newStaffLast || !newStaffEmail || !newStaffDept || !selectedPosition) {
       toast.error("Please fill in all required staff fields, including their email address.");
       return;
     }
@@ -196,7 +213,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
           email: newStaffEmail,
           departmentId: newStaffDept,
           positionId: newStaffPos,
-          roleId: newStaffRole,
+          roleId: selectedPosition.defaultRoleId,
           phone: newStaffPhone,
         }),
       });
@@ -314,6 +331,60 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
       toast.success(`${staffName}'s account was deleted.`);
     } catch {
       toast.error("Network error deleting user.");
+    }
+  };
+
+  const handleCreateCodeChangeRequest = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      const response = await fetch("/api/code-change-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: newCodeRequestTitle,
+          description: newCodeRequestDescription,
+          priority: newCodeRequestPriority,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || "Could not create the code change request.");
+        return;
+      }
+      setCodeChangeRequests((current) => [result, ...current]);
+      setNewCodeRequestTitle("");
+      setNewCodeRequestDescription("");
+      setNewCodeRequestPriority("normal");
+      toast.success("Code change request added.");
+    } catch {
+      toast.error("Network error creating code change request.");
+    }
+  };
+
+  const handleSystemItemStatus = async (
+    endpoint: "site-errors" | "code-change-requests",
+    itemId: string,
+    status: string
+  ) => {
+    try {
+      const response = await fetch(`/api/${endpoint}/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || "Could not update status.");
+        return;
+      }
+      if (endpoint === "site-errors") {
+        setSiteErrors((current) => current.map((item) => item.id === itemId ? result : item));
+      } else {
+        setCodeChangeRequests((current) => current.map((item) => item.id === itemId ? result : item));
+      }
+      toast.success("Status updated.");
+    } catch {
+      toast.error("Network error updating status.");
     }
   };
 
@@ -533,7 +604,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
 
         {/* Tab Navigation */}
         <div className="bg-church-cream border-b border-church-stone px-4 sm:px-6 flex overflow-x-auto gap-2 py-2 shrink-0">
-          {(isSystemAdmin || hasPermission("users.view")) && (
+          {hasPermission("users.view") && (
             <button
               onClick={() => setActiveTab("admin")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -543,11 +614,25 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
               }`}
             >
               <Shield className="w-4 h-4 text-amber-400" />
-              <span>System & Staff RBAC</span>
+              <span>System & Staff Admin</span>
             </button>
           )}
 
-          {(hasPermission("members.view") || hasPermission("pastoral_care.view") || isSystemAdmin) && (
+          {isSystemAdmin && (
+            <button
+              onClick={() => setActiveTab("system")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "system"
+                  ? "bg-church-rock text-white shadow-xs"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-white/60"
+              }`}
+            >
+              <AlertCircle className="w-4 h-4 text-amber-400" />
+              <span>Site Errors & Code Requests</span>
+            </button>
+          )}
+
+          {(hasPermission("members.view") || hasPermission("pastoral_care.view")) && (
             <button
               onClick={() => setActiveTab("pastor")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -561,7 +646,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
             </button>
           )}
 
-          {(hasPermission("finance.transactions.view") || isSystemAdmin) && (
+          {hasPermission("finance.transactions.view") && (
             <button
               onClick={() => setActiveTab("finance")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -575,7 +660,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
             </button>
           )}
 
-          {(hasPermission("worship.schedule.view") || isSystemAdmin) && (
+          {hasPermission("worship.schedule.view") && (
             <button
               onClick={() => setActiveTab("worship")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -589,7 +674,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
             </button>
           )}
 
-          {(hasPermission("media.assets.view") || isSystemAdmin) && (
+          {hasPermission("media.assets.view") && (
             <button
               onClick={() => setActiveTab("media")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -625,10 +710,10 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-church-stone shadow-xs">
                 <div>
                   <h2 className="font-serif text-2xl font-bold text-stone-900">
-                    Staff & Department Governance
+                    Staff & Department Administration
                   </h2>
                   <p className="text-stone-500 text-xs sm:text-sm">
-                    Manage GTRA staff credentials, auto-generated email convention (<code>initialSurname@domain</code>), and departmental permissions.
+                    Manage employee accounts, create departments, and review account activity.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -640,7 +725,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                         const position = positions.find((entry) => entry.departmentId === departmentId);
                         setNewStaffDept(departmentId);
                         setNewStaffPos(position?.id || "");
-                        setNewStaffRole(position?.defaultRoleId || "");
                         setShowAddStaffModal(true);
                       }}
                       className="bg-church-gold hover:bg-church-gold-hover text-white shadow-xs text-xs"
@@ -668,7 +752,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                     <Users className="w-4 h-4 text-church-gold-dark" />
                     GTRA Staff Directory & Identifiers ({staffList.length})
                   </h3>
-                  <span className="text-xs text-stone-500">Backend Enforced RBAC</span>
+                  <span className="text-xs text-stone-500">Account access controls</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs sm:text-sm">
@@ -677,7 +761,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                         <th className="p-3.5 pl-5">Staff Member</th>
                         <th className="p-3.5">Assigned Login Identifier</th>
                         <th className="p-3.5">Department & Position</th>
-                        <th className="p-3.5">Application Role</th>
                         <th className="p-3.5">Status</th>
                         <th className="p-3.5 pr-5 text-right">Actions</th>
                       </tr>
@@ -687,8 +770,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                         const firstAssign = stf.assignments?.[0];
                         const dept = departments.find((d) => d.id === firstAssign?.departmentId);
                         const pos = positions.find((p) => p.id === firstAssign?.positionId);
-                        const role = roles.find((r) => r.id === firstAssign?.roleId);
-
                         return (
                           <tr key={stf.id} className="hover:bg-amber-50/30 transition-colors">
                             <td className="p-3.5 pl-5 font-semibold text-stone-900">
@@ -704,11 +785,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                             <td className="p-3.5">
                               <div className="font-medium">{dept?.name || "Church Administration"}</div>
                               <div className="text-[11px] text-stone-500">{pos?.title || "Staff Member"}</div>
-                            </td>
-                            <td className="p-3.5">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-stone-700">
-                                {role?.name || "General Staff"}
-                              </span>
                             </td>
                             <td className="p-3.5">
                               <span
@@ -835,6 +911,142 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
             </div>
           )}
 
+          {activeTab === "system" && isSystemAdmin && (
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-2xl border border-church-stone shadow-xs">
+                <h2 className="font-serif text-2xl font-bold text-stone-900">Site Errors & Code Requests</h2>
+                <p className="mt-1 text-sm text-stone-600">
+                  Review automatically reported browser errors and track requested code work. Source editing and deployment remain in the developer workflow.
+                </p>
+              </div>
+
+              <section className="bg-white rounded-2xl border border-church-stone shadow-xs overflow-hidden">
+                <div className="p-4 border-b border-church-stone bg-church-cream/40">
+                  <h3 className="font-serif text-lg font-bold text-stone-900">Reported Site Errors ({siteErrors.length})</h3>
+                </div>
+                {siteErrors.length === 0 ? (
+                  <p className="p-5 text-sm text-stone-500">No site errors have been reported.</p>
+                ) : (
+                  <div className="divide-y divide-stone-100">
+                    {siteErrors.map((report) => (
+                      <article key={report.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-stone-900 break-words">{report.message}</p>
+                          <p className="mt-1 text-xs text-stone-500 break-all">{report.source}</p>
+                          <p className="mt-1 text-xs text-stone-500">
+                            {formatDateTime(report.createdAt)} · Reported by {report.reporterName}
+                          </p>
+                          {report.stack && (
+                            <details className="mt-2 text-xs text-stone-600">
+                              <summary className="cursor-pointer">Technical details</summary>
+                              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-stone-50 p-3 font-mono">{report.stack}</pre>
+                            </details>
+                          )}
+                        </div>
+                        <select
+                          value={report.status}
+                          onChange={(event) => handleSystemItemStatus("site-errors", report.id, event.target.value)}
+                          aria-label={`Update error status for ${report.message}`}
+                          className="h-9 shrink-0 rounded-lg border border-stone-300 bg-white px-2 text-xs"
+                        >
+                          <option value="open">Open</option>
+                          <option value="acknowledged">Acknowledged</option>
+                          <option value="resolved">Resolved</option>
+                        </select>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="grid gap-6 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.2fr)]">
+                <form onSubmit={handleCreateCodeChangeRequest} className="space-y-3 rounded-2xl border border-church-stone bg-white p-5 shadow-xs">
+                  <div>
+                    <h3 className="font-serif text-lg font-bold text-stone-900">Create Code Change Request</h3>
+                    <p className="mt-1 text-xs text-stone-500">Describe the change for developers to implement outside this portal.</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="code-request-title" className="text-xs">Title</Label>
+                    <Input
+                      id="code-request-title"
+                      value={newCodeRequestTitle}
+                      onChange={(event) => setNewCodeRequestTitle(event.target.value)}
+                      maxLength={150}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="code-request-description" className="text-xs">Description</Label>
+                    <textarea
+                      id="code-request-description"
+                      value={newCodeRequestDescription}
+                      onChange={(event) => setNewCodeRequestDescription(event.target.value)}
+                      maxLength={3000}
+                      rows={5}
+                      required
+                      className="w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="code-request-priority" className="text-xs">Priority</Label>
+                    <select
+                      id="code-request-priority"
+                      value={newCodeRequestPriority}
+                      onChange={(event) => setNewCodeRequestPriority(event.target.value as "low" | "normal" | "high")}
+                      className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
+                    >
+                      <option value="low">Low</option>
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <Button type="submit" className="w-full bg-church-gold hover:bg-church-gold-hover text-white">
+                    <Plus className="mr-1 h-4 w-4" /> Add Request
+                  </Button>
+                </form>
+
+                <div className="rounded-2xl border border-church-stone bg-white shadow-xs overflow-hidden">
+                  <div className="p-4 border-b border-church-stone bg-church-cream/40">
+                    <h3 className="font-serif text-lg font-bold text-stone-900">Code Change Requests ({codeChangeRequests.length})</h3>
+                  </div>
+                  {codeChangeRequests.length === 0 ? (
+                    <p className="p-5 text-sm text-stone-500">No code change requests have been created.</p>
+                  ) : (
+                    <div className="divide-y divide-stone-100">
+                      {codeChangeRequests.map((request) => (
+                        <article key={request.id} className="p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="font-semibold text-stone-900">{request.title}</h4>
+                                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">{request.priority}</span>
+                              </div>
+                              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-stone-600">{request.description}</p>
+                              <p className="mt-2 text-xs text-stone-500">
+                                Requested by {request.createdByName} · {formatDateTime(request.createdAt)}
+                              </p>
+                            </div>
+                            <select
+                              value={request.status}
+                              onChange={(event) => handleSystemItemStatus("code-change-requests", request.id, event.target.value)}
+                              aria-label={`Update status for ${request.title}`}
+                              className="h-9 shrink-0 rounded-lg border border-stone-300 bg-white px-2 text-xs"
+                            >
+                              <option value="requested">Requested</option>
+                              <option value="in_progress">In progress</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
           {/* TAB 2: PASTORAL & MEMBERS */}
           {activeTab === "pastor" && (
             <div className="space-y-6">
@@ -904,7 +1116,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                 </div>
               </div>
 
-              {(hasPermission("pastoral_care.view") || isSystemAdmin) && (
+              {hasPermission("pastoral_care.view") && (
                 <div className="bg-white rounded-2xl border border-church-stone shadow-xs overflow-hidden">
                   <div className="p-4 border-b border-church-stone bg-church-cream/40">
                     <h3 className="font-serif text-lg font-bold text-stone-900">
@@ -930,7 +1142,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                 </div>
               )}
 
-              {(hasPermission("events.manage") || isSystemAdmin) && (
+              {hasPermission("events.manage") && (
                 <div className="bg-white rounded-2xl border border-church-stone shadow-xs overflow-hidden">
                   <div className="p-4 border-b border-church-stone bg-church-cream/40">
                     <h3 className="font-serif text-lg font-bold text-stone-900">
@@ -952,7 +1164,7 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                 </div>
               )}
 
-              {(hasPermission("worship.schedule.view") || isSystemAdmin) && (
+              {hasPermission("worship.schedule.view") && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {worshipSchedules.map((schedule) => (
                     <Card key={schedule.id} className="border border-church-stone bg-white p-4">
@@ -1355,7 +1567,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                     const firstPosition = positions.find((position) => position.departmentId === departmentId);
                     setNewStaffDept(departmentId);
                     setNewStaffPos(firstPosition?.id || "");
-                    setNewStaffRole(firstPosition?.defaultRoleId || "");
                   }}
                   className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
                   required
@@ -1375,7 +1586,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                   onChange={(e) => {
                     const position = positions.find((entry) => entry.id === e.target.value);
                     setNewStaffPos(e.target.value);
-                    setNewStaffRole(position?.defaultRoleId || "");
                   }}
                   className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
                   required
@@ -1387,29 +1597,6 @@ export function StaffPortal({ isOpen, onClose }: StaffPortalProps) {
                         {p.title}
                       </option>
                     ))}
-                </select>
-              </div>
-
-              <div>
-                <Label className="text-xs">Application Role (RBAC)</Label>
-                <select
-                  value={newStaffRole}
-                  onChange={(e) => setNewStaffRole(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-stone-300 px-3 text-sm bg-white"
-                  required
-                >
-                  {roles.filter((role) =>
-                    role.id !== "system_admin" &&
-                    positions.some((position) =>
-                      position.id === newStaffPos &&
-                      position.departmentId === newStaffDept &&
-                      position.defaultRoleId === role.id
-                    )
-                  ).map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
                 </select>
               </div>
 

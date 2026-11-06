@@ -18,6 +18,56 @@ import { PasswordChangeModal } from "./components/auth/PasswordChangeModal";
 import { PasswordSetupModal } from "./components/auth/PasswordSetupModal";
 import { StaffPortal } from "./components/portal/StaffPortal";
 import { Toaster } from "sonner";
+import { useAuth } from "./hooks/useAuth";
+import { useEffect } from "react";
+
+function SiteErrorReporter() {
+  const { token } = useAuth();
+
+  useEffect(() => {
+    if (!token) return;
+    const report = (message: string, source: string, stack?: string) => {
+      void fetch("/api/site-errors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message, source, stack }),
+      }).then(async (response) => {
+        if (!response.ok) {
+          console.error("Could not submit a site error report:", await response.text());
+        }
+      }).catch((error: unknown) => {
+        console.error("Could not submit a site error report:", error);
+      });
+    };
+    const onError = (event: ErrorEvent) => {
+      report(
+        event.message || "Uncaught browser error",
+        event.filename || window.location.pathname,
+        event.error instanceof Error ? event.error.stack : undefined
+      );
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      report(
+        reason instanceof Error ? reason.message : String(reason ?? "Unhandled promise rejection"),
+        window.location.pathname,
+        reason instanceof Error ? reason.stack : undefined
+      );
+    };
+
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, [token]);
+
+  return null;
+}
 
 export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -36,6 +86,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <SiteErrorReporter />
       <div className="min-h-screen bg-church-cream font-sans selection:bg-church-gold selection:text-white">
         <Navbar 
           onOpenLogin={handleOpenLogin}

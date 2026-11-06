@@ -154,6 +154,30 @@ export interface AuditLog {
   ipAddress?: string;
 }
 
+export interface SiteErrorReport {
+  id: string;
+  message: string;
+  source: string;
+  stack?: string;
+  reporterId: string;
+  reporterName: string;
+  status: 'open' | 'acknowledged' | 'resolved';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CodeChangeRequest {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'low' | 'normal' | 'high';
+  status: 'requested' | 'in_progress' | 'completed' | 'cancelled';
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DatabaseSchema {
   revision?: number;
   users: User[];
@@ -167,4 +191,6 @@ export interface DatabaseSchema {
   eventRequests: EventRequest[];
   mediaAssets: MediaAsset[];
   auditLogs: AuditLog[];
+  siteErrors: SiteErrorReport[];
+  codeChangeRequests: CodeChangeRequest[];
 }

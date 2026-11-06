@@ -151,6 +151,24 @@ async function runTests() {
   assert(mediaRole?.permissions.includes('media.assets.view') === true, 'Media managers can view the media library');
   assert(mediaRole?.permissions.includes('media.assets.manage') === true, 'Media managers can upload media');
 
+  const systemAdminRole = db.roles.find(r => r.id === 'system_admin');
+  assert(systemAdminRole?.permissions.includes('users.delete') === true, 'System Administrators can delete user accounts');
+  assert(
+    systemAdminRole?.permissions.some((permission) =>
+      ['members.view', 'finance.transactions.view', 'worship.schedule.view', 'media.assets.view'].includes(permission)
+    ) === false,
+    'System Administrators do not receive church operations access'
+  );
+
+  const churchAdminRole = db.roles.find(r => r.id === 'church_admin');
+  assert(churchAdminRole?.permissions.includes('users.create') === true, 'Church Administrators can create employees');
+  assert(churchAdminRole?.permissions.includes('users.delete') === false, 'Church Administrators cannot delete employees');
+  assert(churchAdminRole?.permissions.includes('members.view') === true, 'Church Administrators can manage members');
+  assert(churchAdminRole?.permissions.includes('finance.transactions.view') === true, 'Church Administrators can manage finance');
+  assert(churchAdminRole?.permissions.includes('worship.schedule.view') === true, 'Church Administrators can manage worship');
+  assert(churchAdminRole?.permissions.includes('media.assets.view') === true, 'Church Administrators can review the media library');
+  assert(churchAdminRole?.permissions.includes('media.assets.manage') === false, 'Church Administrators cannot upload media');
+
   console.log('\n======================================================');
   console.log(`TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('======================================================');
