@@ -64,11 +64,8 @@ async function startServer() {
 
     const client = getStripe();
     if (!client) {
-      // For demo purposes, we mock success if no key is found
-      const baseUrl = process.env.APP_URL || `http://localhost:${PORT}`;
-      return res.json({ 
-        url: `${baseUrl}?donation_success=true&amount=${donationAmount}&currency=ZAR&type=${encodeURIComponent(type || "tithe")}`,
-        mock: true 
+      return res.status(503).json({
+        error: "Online donations are unavailable until Stripe is configured.",
       });
     }
 
@@ -99,6 +96,27 @@ async function startServer() {
     } catch (error) {
       console.error("Stripe Checkout Error:", error);
       res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  app.get("/api/donations/checkout-sessions/:sessionId", async (req, res) => {
+    const client = getStripe();
+    if (!client) {
+      return res.status(503).json({
+        error: "Online donations are unavailable until Stripe is configured.",
+      });
+    }
+
+    try {
+      const session = await client.checkout.sessions.retrieve(req.params.sessionId);
+      return res.json({
+        paid: session.payment_status === "paid",
+        amount: session.amount_total === null ? null : session.amount_total / 100,
+        currency: session.currency?.toUpperCase() ?? null,
+      });
+    } catch (error) {
+      console.error("Stripe Checkout Session Verification Error:", error);
+      return res.status(502).json({ error: "Could not verify the donation payment." });
     }
   });
 

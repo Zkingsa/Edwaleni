@@ -26,13 +26,36 @@ export function DonationPortal() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("donation_success") === "true" || params.get("success") === "true") {
-      setShowSuccessBanner(true);
-      setSuccessAmount(params.get("amount"));
-      toast.success("Thank you for your generous gift to God The Rock Assembly!");
-      // Clean query parameter without reload
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    const sessionId = params.get("session_id");
+    if (!sessionId) return;
+
+    let active = true;
+    void fetch(`/api/donations/checkout-sessions/${encodeURIComponent(sessionId)}`)
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not verify donation payment.");
+        if (!active) return;
+        if (result.paid) {
+          setShowSuccessBanner(true);
+          setSuccessAmount(result.amount === null ? null : String(result.amount));
+          toast.success("Thank you for your generous gift to God The Rock Assembly!");
+        } else {
+          toast.info("Your payment is not confirmed yet. Please check with your bank or contact the church.");
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          console.error("Donation payment verification failed:", error);
+          toast.error(error instanceof Error ? error.message : "Could not verify donation payment.");
+        }
+      })
+      .finally(() => {
+        if (active) window.history.replaceState({}, document.title, window.location.pathname);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const quickAmounts = ["100", "250", "500", "1000", "2500", "5000"];
@@ -61,11 +84,11 @@ export function DonationPortal() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        throw new Error("Failed to create checkout session");
+        throw new Error(data.error || "Failed to create checkout session.");
       }
     } catch (error) {
       console.error(error);
-      toast.error("Unable to process donation right now. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Unable to process donation right now. Please try again.");
     } finally {
       setIsLoading(false);
     }
